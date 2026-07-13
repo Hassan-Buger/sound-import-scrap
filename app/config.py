@@ -1,5 +1,9 @@
+import logging
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from typing import ClassVar
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -10,7 +14,28 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # NOTE: this default is only meant for local dev via docker-compose.
+    # If you see "ConnectionRefusedError" to localhost:5432 in a deployed
+    # environment (Railway, etc.), it means DATABASE_URL was never actually
+    # injected into this service and it silently fell back to this default.
     database_url: str = "postgresql+asyncpg://scraper:scraper_pass@localhost:5432/soundimports"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        """
+        Many hosting providers (Railway, Render, Heroku, etc.) inject
+        DATABASE_URL as plain 'postgres://' or 'postgresql://', which is
+        the sync psycopg2-style scheme. SQLAlchemy's async engine needs the
+        '+asyncpg' driver explicitly, or it will fail to connect / pick the
+        wrong dialect. Normalize automatically so we don't depend on the
+        platform (or the human setting env vars) getting the scheme right.
+        """
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     base_url: str = "https://www.soundimports.eu"
     sitemap_url: str = "https://www.soundimports.eu/en/sitemap/"
