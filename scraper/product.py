@@ -63,14 +63,20 @@ class ProductScraper:
         categories = raw.get("categories") or raw.get("category") or []
         category_ids = None
         if isinstance(categories, list):
-            slugs = []
+            names = []
             for cat in categories:
                 if isinstance(cat, dict):
-                    slugs.append(cat.get("slug") or cat.get("url") or str(cat.get("id", "")))
+                    names.append(
+                        cat.get("name")
+                        or cat.get("title")
+                        or cat.get("slug")
+                        or cat.get("url")
+                        or str(cat.get("id", ""))
+                    )
                 elif isinstance(cat, str):
-                    slugs.append(cat)
-            if slugs:
-                category_ids = ",".join(slugs)
+                    names.append(cat)
+            if names:
+                category_ids = ",".join(names)
         elif isinstance(categories, str):
             category_ids = categories
 
