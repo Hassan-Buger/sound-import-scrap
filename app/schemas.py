@@ -3,6 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.models import Product, Category
+from app.config import settings
 
 
 class ImageOut(BaseModel):
@@ -10,6 +11,13 @@ class ImageOut(BaseModel):
     src: str
     sort_order: int
     is_cover: bool
+
+    @field_validator("src", mode="before")
+    @classmethod
+    def make_absolute_url(cls, v):
+        if v and not v.startswith("http"):
+            return settings.base_url.rstrip("/") + "/" + v.lstrip("/")
+        return v
 
 
 class AttributeOut(BaseModel):
@@ -88,6 +96,7 @@ class ProductDetail(BaseModel):
     ean: Optional[str] = None
     currency: str = "EUR"
     url: Optional[str] = None
+    category: str = "Uncategorized"
     categories: List[str] = []
     images: List[ImageOut] = []
     attributes: List[AttributeOut] = []
@@ -97,6 +106,7 @@ class ProductDetail(BaseModel):
     @classmethod
     def map_from_orm(cls, data):
         if isinstance(data, Product):
+            cats = data.category_ids.split(",") if data.category_ids else []
             return {
                 "id": data.id,
                 "sku": data.sku,
@@ -110,7 +120,8 @@ class ProductDetail(BaseModel):
                 "ean": data.ean,
                 "currency": data.currency or "EUR",
                 "url": data.url,
-                "categories": data.category_ids.split(",") if data.category_ids else [],
+                "category": cats[0] if cats else "Uncategorized",
+                "categories": cats,
                 "images": [
                     ImageOut(id=i.id, src=i.image_url, sort_order=i.sort_order, is_cover=i.is_cover)
                     for i in data.images

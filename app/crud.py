@@ -152,13 +152,21 @@ async def export_products(
 
 
 async def get_product_by_id(db: AsyncSession, product_id: int) -> Optional[Product]:
-    stmt = select(Product).where(Product.id == product_id)
+    stmt = (
+        select(Product)
+        .where(Product.id == product_id)
+        .options(selectinload(Product.images), selectinload(Product.attributes_rel))
+    )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def get_product_by_sku(db: AsyncSession, sku: str) -> Optional[Product]:
-    stmt = select(Product).where(Product.sku == sku)
+    stmt = (
+        select(Product)
+        .where(Product.sku == sku)
+        .options(selectinload(Product.images), selectinload(Product.attributes_rel))
+    )
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
