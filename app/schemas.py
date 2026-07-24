@@ -15,7 +15,11 @@ class ImageOut(BaseModel):
     @field_validator("src", mode="before")
     @classmethod
     def make_absolute_url(cls, v):
-        if v and not v.startswith("http"):
+        if not v:
+            return v
+        if not v.startswith("http"):
+            if isinstance(v, str) and v.isdigit():
+                return f"https://cdn.webshopapp.com/shops/188510/files/{v}/500x500x2.jpg"
             return settings.base_url.rstrip("/") + "/" + v.lstrip("/")
         return v
 
