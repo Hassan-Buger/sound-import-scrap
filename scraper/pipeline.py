@@ -178,20 +178,19 @@ class ScrapePipeline:
                         logger.info("Category %s already completed, skipping", cat_name)
                         return
 
-            page = start_page
-            limit = 100
-            total_products_in_category = 0
+            # Use category slug from the category dict for product categorization
+                category_slug = category.get("slug")
 
-            while True:
-                data = await self.supplier.get_product_list(cat_url, page=page, limit=limit)
-                self._stats["pages_fetched"] += 1
+                while True:
+                    data = await self.supplier.get_product_list(cat_url, page=page, limit=limit)
+                    self._stats["pages_fetched"] += 1
 
-                product_list = self._extract_products_from_list(data)
-                if not product_list:
-                    logger.debug("No products on page %d for %s", page, cat_name)
-                    break
+                    product_list = self._extract_products_from_list(data)
+                    if not product_list:
+                        logger.debug("No products on page %d for %s", page, cat_name)
+                        break
 
-                await self._process_product_list(product_list)
+                    await self._process_product_list(product_list, category_slug=category_slug)
 
                 total_pages = self._get_total_pages(data)
                 logger.debug(
@@ -236,7 +235,7 @@ class ScrapePipeline:
                     errors=str(e),
                 )
 
-    async def _process_product_list(self, product_list: List[Dict[str, Any]]):
+    async def _process_product_list(self, product_list: List[Dict[str, Any]], category_slug: str = None):
         """Fetch details for all products in a list concurrently."""
         http_sem = asyncio.Semaphore(self.supplier.concurrency)
         db_sem = asyncio.Semaphore(20)
@@ -248,7 +247,7 @@ class ScrapePipeline:
                     detail_data = await self.supplier.get_product_detail(
                         product_summary.get("url", "")
                     )
-                    product_data = self.supplier.extract_product_detail(detail_data)
+                    product_data = self.supplier.extract_product_detail(detail_data, category_slug=category_slug)
 
                     async with db_sem:
                         async with async_session_factory() as db:

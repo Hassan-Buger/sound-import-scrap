@@ -23,7 +23,7 @@ class ProductScraper:
             data = data["product"]
         return data
 
-    def extract_product_data(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_product_data(self, raw: Dict[str, Any], category_slug: Optional[str] = None) -> Dict[str, Any]:
         """Normalize raw product JSON into a structured dict for DB upsert."""
         product_id = str(raw.get("id") or raw.get("productId") or raw.get("product_id", ""))
         variant_id = raw.get("vid") or raw.get("variantId") or ""
@@ -59,7 +59,11 @@ class ProductScraper:
 
         currency = raw.get("currency") or "EUR"
         url = raw.get("url") or raw.get("productUrl") or raw.get("link")
+        # Make URL absolute
+        if url and not url.startswith("http"):
+            url = settings.base_url.rstrip("/") + "/en/" + url.lstrip("/")
 
+        # Use category from API if present, otherwise fall back to passed category_slug
         categories = raw.get("categories") or raw.get("category") or []
         category_ids = None
         if isinstance(categories, list):
@@ -79,6 +83,9 @@ class ProductScraper:
                 category_ids = ",".join(names)
         elif isinstance(categories, str):
             category_ids = categories
+        # Fallback to category_slug from category page context
+        if not category_ids and category_slug:
+            category_ids = category_slug
 
         images_list = self._extract_images(raw)
         attributes_list = self._extract_attributes(raw)
