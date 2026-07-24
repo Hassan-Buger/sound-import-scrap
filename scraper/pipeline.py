@@ -179,18 +179,22 @@ class ScrapePipeline:
                         return
 
             # Use category slug from the category dict for product categorization
-                category_slug = category.get("slug")
+            category_slug = category.get("slug")
 
-                while True:
-                    data = await self.supplier.get_product_list(cat_url, page=page, limit=limit)
-                    self._stats["pages_fetched"] += 1
+            page = start_page
+            limit = 100
+            total_products_in_category = 0
 
-                    product_list = self._extract_products_from_list(data)
-                    if not product_list:
-                        logger.debug("No products on page %d for %s", page, cat_name)
-                        break
+            while True:
+                data = await self.supplier.get_product_list(cat_url, page=page, limit=limit)
+                self._stats["pages_fetched"] += 1
 
-                    await self._process_product_list(product_list, category_slug=category_slug)
+                product_list = self._extract_products_from_list(data)
+                if not product_list:
+                    logger.debug("No products on page %d for %s", page, cat_name)
+                    break
+
+                await self._process_product_list(product_list, category_slug=category_slug)
 
                 total_pages = self._get_total_pages(data)
                 logger.debug(
