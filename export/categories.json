@@ -1,0 +1,3448 @@
+[
+    {
+        "id":  78,
+        "parent_id":  null,
+        "name":  "Accessories",
+        "slug":  "accessories",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  22,
+        "parent_id":  null,
+        "name":  "Audio components",
+        "slug":  "audio-components",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  49,
+        "parent_id":  null,
+        "name":  "Crossover components",
+        "slug":  "crossover-components",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  71,
+        "parent_id":  null,
+        "name":  "DIY kits",
+        "slug":  "diy-kits",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  163,
+        "parent_id":  null,
+        "name":  "Dayton Audio exciters",
+        "slug":  "dayton-audio-exciters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  1,
+        "parent_id":  null,
+        "name":  "Home audio",
+        "slug":  "home-audio",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  165,
+        "parent_id":  null,
+        "name":  "Monacor tweeters",
+        "slug":  "monacor-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  164,
+        "parent_id":  null,
+        "name":  "Morel tweeters",
+        "slug":  "morel-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  161,
+        "parent_id":  null,
+        "name":  "New products",
+        "slug":  "new-products",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  171,
+        "parent_id":  null,
+        "name":  "Peerless by Tymphany tweeters",
+        "slug":  "peerless-by-tymphany-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  170,
+        "parent_id":  null,
+        "name":  "Peerless by Tymphany woofers",
+        "slug":  "peerless-by-tymphany-woofers",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  162,
+        "parent_id":  null,
+        "name":  "SALE",
+        "slug":  "sale",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  168,
+        "parent_id":  null,
+        "name":  "SB Acoustics tweeters",
+        "slug":  "sb-acoustics-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  169,
+        "parent_id":  null,
+        "name":  "SEAS tweeters",
+        "slug":  "seas-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  167,
+        "parent_id":  null,
+        "name":  "Scan-Speak tweeters",
+        "slug":  "scan-speak-tweeters",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  166,
+        "parent_id":  null,
+        "name":  "Scan-Speak woofers",
+        "slug":  "scan-speak-woofers",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  67,
+        "parent_id":  null,
+        "name":  "Test \u0026 measurement",
+        "slug":  "test-measurement",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  172,
+        "parent_id":  null,
+        "name":  "Tools",
+        "slug":  "tools",
+        "children":  [
+
+                     ]
+    },
+    {
+        "id":  68,
+        "parent_id":  67,
+        "name":  "Acoustic measurements",
+        "slug":  "acoustic-measurements",
+        "children":  [
+                         {
+                             "id":  67,
+                             "parent_id":  null,
+                             "name":  "Test \u0026 measurement",
+                             "slug":  "test-measurement",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  146,
+        "parent_id":  78,
+        "name":  "Amplifier accessories",
+        "slug":  "amplifier-accessories",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  47,
+        "parent_id":  22,
+        "name":  "Amplifier modules",
+        "slug":  "amplifier-modules",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  9,
+        "parent_id":  1,
+        "name":  "Amplifiers",
+        "slug":  "amplifiers",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  50,
+        "parent_id":  49,
+        "name":  "Assembled crossovers",
+        "slug":  "assembled-crossovers",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  45,
+        "parent_id":  22,
+        "name":  "Bass shakers",
+        "slug":  "bass-shakers",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  79,
+        "parent_id":  78,
+        "name":  "Binding posts",
+        "slug":  "binding-posts",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  160,
+        "parent_id":  78,
+        "name":  "Books",
+        "slug":  "books",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  83,
+        "parent_id":  78,
+        "name":  "Cabinet Hardware",
+        "slug":  "cabinet-hardware",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  94,
+        "parent_id":  78,
+        "name":  "Cables",
+        "slug":  "cables",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  52,
+        "parent_id":  49,
+        "name":  "Capacitors",
+        "slug":  "capacitors",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  64,
+        "parent_id":  49,
+        "name":  "Circuit Breakers",
+        "slug":  "circuit-breakers",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  56,
+        "parent_id":  49,
+        "name":  "Coils",
+        "slug":  "coils",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  104,
+        "parent_id":  78,
+        "name":  "Connectors",
+        "slug":  "connectors",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  65,
+        "parent_id":  49,
+        "name":  "Crossover tools",
+        "slug":  "crossover-tools",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  18,
+        "parent_id":  1,
+        "name":  "DAC converters",
+        "slug":  "dac-converters",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  72,
+        "parent_id":  71,
+        "name":  "DIY amplifier kits",
+        "slug":  "diy-amplifier-kits",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  76,
+        "parent_id":  71,
+        "name":  "DIY bluetooth speaker",
+        "slug":  "diy-bluetooth-speaker",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  73,
+        "parent_id":  71,
+        "name":  "DIY component packs",
+        "slug":  "diy-component-packs",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  77,
+        "parent_id":  71,
+        "name":  "DIY electronics kits",
+        "slug":  "diy-electronics-kits",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  74,
+        "parent_id":  71,
+        "name":  "DIY speaker kit",
+        "slug":  "diy-speaker-kit",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  75,
+        "parent_id":  71,
+        "name":  "DIY subwoofer kits",
+        "slug":  "diy-subwoofer-kits",
+        "children":  [
+                         {
+                             "id":  71,
+                             "parent_id":  null,
+                             "name":  "DIY kits",
+                             "slug":  "diy-kits",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  19,
+        "parent_id":  1,
+        "name":  "DSP modules",
+        "slug":  "dsp-modules",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  69,
+        "parent_id":  67,
+        "name":  "Electric measurements",
+        "slug":  "electric-measurements",
+        "children":  [
+                         {
+                             "id":  67,
+                             "parent_id":  null,
+                             "name":  "Test \u0026 measurement",
+                             "slug":  "test-measurement",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  123,
+        "parent_id":  78,
+        "name":  "Electromechanics",
+        "slug":  "electromechanics",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  44,
+        "parent_id":  22,
+        "name":  "Exciters",
+        "slug":  "exciters",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  159,
+        "parent_id":  78,
+        "name":  "Gift voucher",
+        "slug":  "gift-voucher",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  46,
+        "parent_id":  22,
+        "name":  "Plate amplifiers",
+        "slug":  "plate-amplifiers",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  127,
+        "parent_id":  78,
+        "name":  "Power supplies",
+        "slug":  "power-supplies",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  51,
+        "parent_id":  49,
+        "name":  "Printed Circuit Boards (PCB)",
+        "slug":  "printed-circuit-boards-pcb",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  55,
+        "parent_id":  49,
+        "name":  "Resistors",
+        "slug":  "resistors",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  66,
+        "parent_id":  49,
+        "name":  "Screw terminals",
+        "slug":  "screw-terminals",
+        "children":  [
+                         {
+                             "id":  49,
+                             "parent_id":  null,
+                             "name":  "Crossover components",
+                             "slug":  "crossover-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  48,
+        "parent_id":  22,
+        "name":  "Single board computers",
+        "slug":  "single-board-computers",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  70,
+        "parent_id":  67,
+        "name":  "Sound level meters",
+        "slug":  "sound-level-meters",
+        "children":  [
+                         {
+                             "id":  67,
+                             "parent_id":  null,
+                             "name":  "Test \u0026 measurement",
+                             "slug":  "test-measurement",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  119,
+        "parent_id":  78,
+        "name":  "Speaker cabinets",
+        "slug":  "speaker-cabinets",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  134,
+        "parent_id":  78,
+        "name":  "Speaker repair",
+        "slug":  "speaker-repair",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  2,
+        "parent_id":  1,
+        "name":  "Speakers",
+        "slug":  "speakers",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  155,
+        "parent_id":  78,
+        "name":  "Stands \u0026 mounts",
+        "slug":  "stands-mounts",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  21,
+        "parent_id":  1,
+        "name":  "Streamers",
+        "slug":  "streamers",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  20,
+        "parent_id":  1,
+        "name":  "Turntables",
+        "slug":  "turntables",
+        "children":  [
+                         {
+                             "id":  1,
+                             "parent_id":  null,
+                             "name":  "Home audio",
+                             "slug":  "home-audio",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  32,
+        "parent_id":  22,
+        "name":  "Tweeters",
+        "slug":  "tweeters",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  23,
+        "parent_id":  22,
+        "name":  "Woofers",
+        "slug":  "woofers",
+        "children":  [
+                         {
+                             "id":  22,
+                             "parent_id":  null,
+                             "name":  "Audio components",
+                             "slug":  "audio-components",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  139,
+        "parent_id":  78,
+        "name":  "Workshop \u0026 tools",
+        "slug":  "workshop-tools",
+        "children":  [
+                         {
+                             "id":  78,
+                             "parent_id":  null,
+                             "name":  "Accessories",
+                             "slug":  "accessories",
+                             "children":  [
+
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  37,
+        "parent_id":  32,
+        "name":  "AMT tweeter",
+        "slug":  "amt-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  138,
+        "parent_id":  134,
+        "name":  "Adhesives \u0026 sprays",
+        "slug":  "adhesives-sprays",
+        "children":  [
+                         {
+                             "id":  134,
+                             "parent_id":  78,
+                             "name":  "Speaker repair",
+                             "slug":  "speaker-repair",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  57,
+        "parent_id":  56,
+        "name":  "Air core coils",
+        "slug":  "air-core-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  117,
+        "parent_id":  104,
+        "name":  "Alligator clips",
+        "slug":  "alligator-clips",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  96,
+        "parent_id":  94,
+        "name":  "Audio cables",
+        "slug":  "audio-cables",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  82,
+        "parent_id":  79,
+        "name":  "Back plates",
+        "slug":  "back-plates",
+        "children":  [
+                         {
+                             "id":  79,
+                             "parent_id":  78,
+                             "name":  "Binding posts",
+                             "slug":  "binding-posts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  105,
+        "parent_id":  104,
+        "name":  "Banana plugs",
+        "slug":  "banana-plugs",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  26,
+        "parent_id":  23,
+        "name":  "Bass-mid woofer",
+        "slug":  "bass-mid-woofer",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  91,
+        "parent_id":  83,
+        "name":  "Bassreflex ports",
+        "slug":  "bassreflex-ports",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  149,
+        "parent_id":  146,
+        "name":  "Battery boards",
+        "slug":  "battery-boards",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  122,
+        "parent_id":  119,
+        "name":  "Bookshelf speaker cabinets",
+        "slug":  "bookshelf-speaker-cabinets",
+        "children":  [
+                         {
+                             "id":  119,
+                             "parent_id":  78,
+                             "name":  "Speaker cabinets",
+                             "slug":  "speaker-cabinets",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  3,
+        "parent_id":  2,
+        "name":  "Bookshelf speakers",
+        "slug":  "bookshelf-speakers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  8,
+        "parent_id":  2,
+        "name":  "Built-in speakers",
+        "slug":  "built-in-speakers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  39,
+        "parent_id":  32,
+        "name":  "Bullet tweeter",
+        "slug":  "bullet-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  84,
+        "parent_id":  83,
+        "name":  "Cabinet coating",
+        "slug":  "cabinet-coating",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  101,
+        "parent_id":  94,
+        "name":  "Cable Management",
+        "slug":  "cable-management",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  100,
+        "parent_id":  94,
+        "name":  "Cable pants",
+        "slug":  "cable-pants",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  150,
+        "parent_id":  146,
+        "name":  "Cables \u0026 cable sets",
+        "slug":  "cables-cable-sets",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  157,
+        "parent_id":  155,
+        "name":  "Ceiling \u0026 wall brackets",
+        "slug":  "ceiling-wall-brackets",
+        "children":  [
+                         {
+                             "id":  155,
+                             "parent_id":  78,
+                             "name":  "Stands \u0026 mounts",
+                             "slug":  "stands-mounts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  141,
+        "parent_id":  139,
+        "name":  "Clamps \u0026 spreaders",
+        "slug":  "clamps-spreaders",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  28,
+        "parent_id":  23,
+        "name":  "Coaxial woofer",
+        "slug":  "coaxial-woofer",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  38,
+        "parent_id":  32,
+        "name":  "Compression driver",
+        "slug":  "compression-driver",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  43,
+        "parent_id":  32,
+        "name":  "Cone tweeter",
+        "slug":  "cone-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  59,
+        "parent_id":  56,
+        "name":  "Copper foil coils",
+        "slug":  "copper-foil-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  33,
+        "parent_id":  32,
+        "name":  "Dome tweeter",
+        "slug":  "dome-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  137,
+        "parent_id":  134,
+        "name":  "Driver Parts",
+        "slug":  "driver-parts",
+        "children":  [
+                         {
+                             "id":  134,
+                             "parent_id":  78,
+                             "name":  "Speaker repair",
+                             "slug":  "speaker-repair",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  145,
+        "parent_id":  139,
+        "name":  "Dummy Load Resistors",
+        "slug":  "dummy-load-resistors",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  135,
+        "parent_id":  134,
+        "name":  "Dust caps",
+        "slug":  "dust-caps",
+        "children":  [
+                         {
+                             "id":  134,
+                             "parent_id":  78,
+                             "name":  "Speaker repair",
+                             "slug":  "speaker-repair",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  53,
+        "parent_id":  52,
+        "name":  "Electrolytic capacitors",
+        "slug":  "electrolytic-capacitors",
+        "children":  [
+                         {
+                             "id":  52,
+                             "parent_id":  49,
+                             "name":  "Capacitors",
+                             "slug":  "capacitors",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  148,
+        "parent_id":  146,
+        "name":  "Extensions",
+        "slug":  "extensions",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  58,
+        "parent_id":  56,
+        "name":  "Ferrite core coils",
+        "slug":  "ferrite-core-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  54,
+        "parent_id":  52,
+        "name":  "Film/ foil capacitors",
+        "slug":  "film-foil-capacitors",
+        "children":  [
+                         {
+                             "id":  52,
+                             "parent_id":  49,
+                             "name":  "Capacitors",
+                             "slug":  "capacitors",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  136,
+        "parent_id":  134,
+        "name":  "Foam surround kits",
+        "slug":  "foam-surround-kits",
+        "children":  [
+                         {
+                             "id":  134,
+                             "parent_id":  78,
+                             "name":  "Speaker repair",
+                             "slug":  "speaker-repair",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  24,
+        "parent_id":  23,
+        "name":  "Full-range woofer",
+        "slug":  "full-range-woofer",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  152,
+        "parent_id":  146,
+        "name":  "Fuses",
+        "slug":  "fuses",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  103,
+        "parent_id":  94,
+        "name":  "Gaffer Tape",
+        "slug":  "gaffer-tape",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  88,
+        "parent_id":  83,
+        "name":  "Gasketing tape",
+        "slug":  "gasketing-tape",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  144,
+        "parent_id":  139,
+        "name":  "Glue Guns",
+        "slug":  "glue-guns",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  142,
+        "parent_id":  139,
+        "name":  "Hand tools",
+        "slug":  "hand-tools",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  16,
+        "parent_id":  9,
+        "name":  "Headphone amplifiers",
+        "slug":  "headphone-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  99,
+        "parent_id":  94,
+        "name":  "Heatshrinks",
+        "slug":  "heatshrinks",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  36,
+        "parent_id":  32,
+        "name":  "Horn/ waveguide tweeter",
+        "slug":  "horn-waveguide-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  92,
+        "parent_id":  83,
+        "name":  "Horns \u0026 waveguides",
+        "slug":  "horns-waveguides",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  14,
+        "parent_id":  9,
+        "name":  "Integrated amplifier",
+        "slug":  "integrated-amplifier",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  60,
+        "parent_id":  56,
+        "name":  "Iron core coils",
+        "slug":  "iron-core-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  108,
+        "parent_id":  104,
+        "name":  "Jack",
+        "slug":  "jack",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  115,
+        "parent_id":  104,
+        "name":  "Keystone modules",
+        "slug":  "keystone-modules",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  153,
+        "parent_id":  146,
+        "name":  "Knobs",
+        "slug":  "knobs",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  125,
+        "parent_id":  123,
+        "name":  "L-Pad attenuators",
+        "slug":  "l-pad-attenuators",
+        "children":  [
+                         {
+                             "id":  123,
+                             "parent_id":  78,
+                             "name":  "Electromechanics",
+                             "slug":  "electromechanics",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  131,
+        "parent_id":  127,
+        "name":  "Lab power supply",
+        "slug":  "lab-power-supply",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  61,
+        "parent_id":  56,
+        "name":  "Litz wire wax coils",
+        "slug":  "litz-wire-wax-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  30,
+        "parent_id":  23,
+        "name":  "Micro speaker",
+        "slug":  "micro-speaker",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  158,
+        "parent_id":  155,
+        "name":  "Microphone stands",
+        "slug":  "microphone-stands",
+        "children":  [
+                         {
+                             "id":  155,
+                             "parent_id":  78,
+                             "name":  "Stands \u0026 mounts",
+                             "slug":  "stands-mounts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  27,
+        "parent_id":  23,
+        "name":  "Mid-range woofer",
+        "slug":  "mid-range-woofer",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  11,
+        "parent_id":  9,
+        "name":  "Mini amplifiers",
+        "slug":  "mini-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  147,
+        "parent_id":  146,
+        "name":  "Mounting \u0026 enclosures",
+        "slug":  "mounting-enclosures",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  90,
+        "parent_id":  83,
+        "name":  "Mounting hardware",
+        "slug":  "mounting-hardware",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  10,
+        "parent_id":  9,
+        "name":  "Multi-room amplifiers",
+        "slug":  "multi-room-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  143,
+        "parent_id":  139,
+        "name":  "Multimeters",
+        "slug":  "multimeters",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  102,
+        "parent_id":  94,
+        "name":  "Noise suppressors",
+        "slug":  "noise-suppressors",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  154,
+        "parent_id":  146,
+        "name":  "OP Amps",
+        "slug":  "op-amps",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  111,
+        "parent_id":  104,
+        "name":  "Optical",
+        "slug":  "optical",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  7,
+        "parent_id":  2,
+        "name":  "Outdoor speakers",
+        "slug":  "outdoor-speakers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  116,
+        "parent_id":  104,
+        "name":  "PCB Standoffs",
+        "slug":  "pcb-standoffs",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  126,
+        "parent_id":  123,
+        "name":  "Panel meters",
+        "slug":  "panel-meters",
+        "children":  [
+                         {
+                             "id":  123,
+                             "parent_id":  78,
+                             "name":  "Electromechanics",
+                             "slug":  "electromechanics",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  29,
+        "parent_id":  23,
+        "name":  "Passive radiator",
+        "slug":  "passive-radiator",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  113,
+        "parent_id":  104,
+        "name":  "Phoenix Type",
+        "slug":  "phoenix-type",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  42,
+        "parent_id":  32,
+        "name":  "Piëzo tweeter",
+        "slug":  "piezo-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  40,
+        "parent_id":  32,
+        "name":  "Planar tweeter",
+        "slug":  "planar-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  124,
+        "parent_id":  123,
+        "name":  "Potentiometers",
+        "slug":  "potentiometers",
+        "children":  [
+                         {
+                             "id":  123,
+                             "parent_id":  78,
+                             "name":  "Electromechanics",
+                             "slug":  "electromechanics",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  129,
+        "parent_id":  127,
+        "name":  "Power adapters",
+        "slug":  "power-adapters",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  12,
+        "parent_id":  9,
+        "name":  "Power amplifiers",
+        "slug":  "power-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  97,
+        "parent_id":  94,
+        "name":  "Power cables",
+        "slug":  "power-cables",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  112,
+        "parent_id":  104,
+        "name":  "Power plugs",
+        "slug":  "power-plugs",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  132,
+        "parent_id":  127,
+        "name":  "Power strip",
+        "slug":  "power-strip",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  128,
+        "parent_id":  127,
+        "name":  "Power supply modules",
+        "slug":  "power-supply-modules",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  13,
+        "parent_id":  9,
+        "name":  "Pre-amplifiers",
+        "slug":  "pre-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  81,
+        "parent_id":  79,
+        "name":  "Pressfit terminal cups",
+        "slug":  "pressfit-terminal-cups",
+        "children":  [
+                         {
+                             "id":  79,
+                             "parent_id":  78,
+                             "name":  "Binding posts",
+                             "slug":  "binding-posts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  109,
+        "parent_id":  104,
+        "name":  "RCA",
+        "slug":  "rca",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  130,
+        "parent_id":  127,
+        "name":  "Rectifier board",
+        "slug":  "rectifier-board",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  151,
+        "parent_id":  146,
+        "name":  "Remotes",
+        "slug":  "remotes",
+        "children":  [
+                         {
+                             "id":  146,
+                             "parent_id":  78,
+                             "name":  "Amplifier accessories",
+                             "slug":  "amplifier-accessories",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  41,
+        "parent_id":  32,
+        "name":  "Ribbon tweeter",
+        "slug":  "ribbon-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  35,
+        "parent_id":  32,
+        "name":  "Ring dome tweeter",
+        "slug":  "ring-dome-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  34,
+        "parent_id":  32,
+        "name":  "Ring radiator tweeter",
+        "slug":  "ring-radiator-tweeter",
+        "children":  [
+                         {
+                             "id":  32,
+                             "parent_id":  22,
+                             "name":  "Tweeters",
+                             "slug":  "tweeters",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  80,
+        "parent_id":  79,
+        "name":  "Screw terminal cups",
+        "slug":  "screw-terminal-cups",
+        "children":  [
+                         {
+                             "id":  79,
+                             "parent_id":  78,
+                             "name":  "Binding posts",
+                             "slug":  "binding-posts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  87,
+        "parent_id":  83,
+        "name":  "Screws and bolts",
+        "slug":  "screws-and-bolts",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  140,
+        "parent_id":  139,
+        "name":  "Soldering",
+        "slug":  "soldering",
+        "children":  [
+                         {
+                             "id":  139,
+                             "parent_id":  78,
+                             "name":  "Workshop \u0026 tools",
+                             "slug":  "workshop-tools",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  6,
+        "parent_id":  2,
+        "name":  "Soundbars and center speakers",
+        "slug":  "soundbars-and-center-speakers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  107,
+        "parent_id":  104,
+        "name":  "Spades",
+        "slug":  "spades",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  106,
+        "parent_id":  104,
+        "name":  "Speaker Pins",
+        "slug":  "speaker-pins",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  86,
+        "parent_id":  83,
+        "name":  "Speaker cabinet feet",
+        "slug":  "speaker-cabinet-feet",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  93,
+        "parent_id":  83,
+        "name":  "Speaker cloth",
+        "slug":  "speaker-cloth",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  85,
+        "parent_id":  83,
+        "name":  "Speaker damping",
+        "slug":  "speaker-damping",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  89,
+        "parent_id":  83,
+        "name":  "Speaker grills",
+        "slug":  "speaker-grills",
+        "children":  [
+                         {
+                             "id":  83,
+                             "parent_id":  78,
+                             "name":  "Cabinet Hardware",
+                             "slug":  "cabinet-hardware",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  31,
+        "parent_id":  23,
+        "name":  "Speaker module",
+        "slug":  "speaker-module",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  156,
+        "parent_id":  155,
+        "name":  "Speaker stands",
+        "slug":  "speaker-stands",
+        "children":  [
+                         {
+                             "id":  155,
+                             "parent_id":  78,
+                             "name":  "Stands \u0026 mounts",
+                             "slug":  "stands-mounts",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  95,
+        "parent_id":  94,
+        "name":  "Speaker wire",
+        "slug":  "speaker-wire",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  25,
+        "parent_id":  23,
+        "name":  "Subwoofer",
+        "slug":  "subwoofer",
+        "children":  [
+                         {
+                             "id":  23,
+                             "parent_id":  22,
+                             "name":  "Woofers",
+                             "slug":  "woofers",
+                             "children":  [
+                                              {
+                                                  "id":  22,
+                                                  "parent_id":  null,
+                                                  "name":  "Audio components",
+                                                  "slug":  "audio-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  15,
+        "parent_id":  9,
+        "name":  "Subwoofer amplifiers",
+        "slug":  "subwoofer-amplifiers",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  121,
+        "parent_id":  119,
+        "name":  "Subwoofer speaker cabinets",
+        "slug":  "subwoofer-speaker-cabinets",
+        "children":  [
+                         {
+                             "id":  119,
+                             "parent_id":  78,
+                             "name":  "Speaker cabinets",
+                             "slug":  "speaker-cabinets",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  5,
+        "parent_id":  2,
+        "name":  "Subwoofers",
+        "slug":  "subwoofers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  17,
+        "parent_id":  9,
+        "name":  "Switches",
+        "slug":  "switches",
+        "children":  [
+                         {
+                             "id":  9,
+                             "parent_id":  1,
+                             "name":  "Amplifiers",
+                             "slug":  "amplifiers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  98,
+        "parent_id":  94,
+        "name":  "Test leads",
+        "slug":  "test-leads",
+        "children":  [
+                         {
+                             "id":  94,
+                             "parent_id":  78,
+                             "name":  "Cables",
+                             "slug":  "cables",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  62,
+        "parent_id":  56,
+        "name":  "Toroidal coils",
+        "slug":  "toroidal-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  4,
+        "parent_id":  2,
+        "name":  "Tower speakers",
+        "slug":  "tower-speakers",
+        "children":  [
+                         {
+                             "id":  2,
+                             "parent_id":  1,
+                             "name":  "Speakers",
+                             "slug":  "speakers",
+                             "children":  [
+                                              {
+                                                  "id":  1,
+                                                  "parent_id":  null,
+                                                  "name":  "Home audio",
+                                                  "slug":  "home-audio",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  63,
+        "parent_id":  56,
+        "name":  "Transformer coils",
+        "slug":  "transformer-coils",
+        "children":  [
+                         {
+                             "id":  56,
+                             "parent_id":  49,
+                             "name":  "Coils",
+                             "slug":  "coils",
+                             "children":  [
+                                              {
+                                                  "id":  49,
+                                                  "parent_id":  null,
+                                                  "name":  "Crossover components",
+                                                  "slug":  "crossover-components",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  120,
+        "parent_id":  119,
+        "name":  "Universal speaker cabinets",
+        "slug":  "universal-speaker-cabinets",
+        "children":  [
+                         {
+                             "id":  119,
+                             "parent_id":  78,
+                             "name":  "Speaker cabinets",
+                             "slug":  "speaker-cabinets",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  133,
+        "parent_id":  127,
+        "name":  "Voltage regulators",
+        "slug":  "voltage-regulators",
+        "children":  [
+                         {
+                             "id":  127,
+                             "parent_id":  78,
+                             "name":  "Power supplies",
+                             "slug":  "power-supplies",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  118,
+        "parent_id":  104,
+        "name":  "WAGO",
+        "slug":  "wago",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  114,
+        "parent_id":  104,
+        "name":  "Wire crimps",
+        "slug":  "wire-crimps",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    },
+    {
+        "id":  110,
+        "parent_id":  104,
+        "name":  "XLR plugs",
+        "slug":  "xlr-plugs",
+        "children":  [
+                         {
+                             "id":  104,
+                             "parent_id":  78,
+                             "name":  "Connectors",
+                             "slug":  "connectors",
+                             "children":  [
+                                              {
+                                                  "id":  78,
+                                                  "parent_id":  null,
+                                                  "name":  "Accessories",
+                                                  "slug":  "accessories",
+                                                  "children":  ""
+                                              }
+                                          ]
+                         }
+                     ]
+    }
+]

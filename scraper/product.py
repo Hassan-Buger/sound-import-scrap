@@ -95,6 +95,10 @@ class ProductScraper:
 
         price_val = float(price) if price else None
 
+        rich_long_desc = self._build_rich_description(
+            raw, description, long_description, attributes_list
+        )
+
         return {
             "product_id": product_id,
             "sku": str(sku),
@@ -102,7 +106,7 @@ class ProductScraper:
             "title": title,
             "description": description,
             "short_description": description,
-            "long_description": long_description,
+            "long_description": rich_long_desc,
             "regular_price": price_val,
             "price": price_val,
             "stock": int(stock) if stock else None,
@@ -115,6 +119,45 @@ class ProductScraper:
             "images": images_list,
             "attributes": attributes_list,
         }
+
+    def _build_rich_description(
+        self,
+        raw: Dict[str, Any],
+        description: Optional[str],
+        long_description: Optional[str],
+        attributes_list: List[Dict[str, Any]],
+    ) -> str:
+        """Build a comprehensive long description combining all available product details."""
+        parts = []
+
+        if long_description:
+            parts.append(long_description)
+
+        if description and description != long_description:
+            parts.append(description)
+
+        specs_text = raw.get("specificationsText") or raw.get("featuresText")
+        if specs_text:
+            parts.append(specs_text)
+
+        features = raw.get("features") or raw.get("highlights") or raw.get("keyFeatures") or []
+        if isinstance(features, list) and features:
+            feature_lines = []
+            for f in features:
+                if isinstance(f, dict):
+                    feature_lines.append(f.get("text") or f.get("name") or str(f.get("value", "")))
+                elif isinstance(f, str):
+                    feature_lines.append(f)
+            if feature_lines:
+                parts.append("Key Features:\n- " + "\n- ".join(feature_lines))
+
+        if attributes_list:
+            parts.append("Specifications:")
+            for attr in attributes_list:
+                parts.append(f"  {attr['attribute_name']}: {attr['attribute_value']}")
+
+        full = "\n\n".join(p for p in parts if p)
+        return full if full else long_description or description or ""
 
     def _extract_images(self, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
         images: List[Dict[str, Any]] = []

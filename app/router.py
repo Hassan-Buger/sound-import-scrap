@@ -13,7 +13,8 @@ from app.dependencies import get_db
 from app.models import Product, Category, ScrapeJob
 from app.schemas import (
     CategoryOut, BrandOut, ProductDetail, ProductListItem,
-    ProductsResponse, ChangedProductsResponse, StatsOut, SyncResponse,
+    ProductDescriptionOut, ProductsResponse, ChangedProductsResponse,
+    StatsOut, SyncResponse,
 )
 from app import crud
 
@@ -70,6 +71,17 @@ async def get_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return ProductDetail.model_validate(product)
+
+
+@router.get("/product/{product_id}/description", response_model=ProductDescriptionOut)
+async def get_product_description(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    product = await crud.get_product_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ProductDescriptionOut.model_validate(product)
 
 
 @router.get("/product/sku/{sku:path}", response_model=ProductDetail)

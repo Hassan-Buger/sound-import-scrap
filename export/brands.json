@@ -1,0 +1,342 @@
+[
+    {
+        "name":  "Accuton",
+        "product_count":  9
+    },
+    {
+        "name":  "Acry-Tech",
+        "product_count":  12
+    },
+    {
+        "name":  "Amplimo",
+        "product_count":  40
+    },
+    {
+        "name":  "Arylic",
+        "product_count":  36
+    },
+    {
+        "name":  "Audio Note",
+        "product_count":  94
+    },
+    {
+        "name":  "Audiomatica",
+        "product_count":  14
+    },
+    {
+        "name":  "Audtek",
+        "product_count":  51
+    },
+    {
+        "name":  "Audyn",
+        "product_count":  9
+    },
+    {
+        "name":  "AuraSound",
+        "product_count":  1
+    },
+    {
+        "name":  "Beyma ",
+        "product_count":  49
+    },
+    {
+        "name":  "BlieSMa",
+        "product_count":  2
+    },
+    {
+        "name":  "Burson Audio",
+        "product_count":  8
+    },
+    {
+        "name":  "ButtKicker",
+        "product_count":  4
+    },
+    {
+        "name":  "CSS",
+        "product_count":  33
+    },
+    {
+        "name":  "ClarityCap",
+        "product_count":  5
+    },
+    {
+        "name":  "Clark Synthesis",
+        "product_count":  1
+    },
+    {
+        "name":  "DACT",
+        "product_count":  31
+    },
+    {
+        "name":  "DSPeaker",
+        "product_count":  4
+    },
+    {
+        "name":  "Dayton Audio",
+        "product_count":  537
+    },
+    {
+        "name":  "Denovo Audio",
+        "product_count":  9
+    },
+    {
+        "name":  "Dynavox",
+        "product_count":  99
+    },
+    {
+        "name":  "ETON",
+        "product_count":  1
+    },
+    {
+        "name":  "FaitalPRO",
+        "product_count":  42
+    },
+    {
+        "name":  "Fosi Audio",
+        "product_count":  50
+    },
+    {
+        "name":  "Fountek",
+        "product_count":  5
+    },
+    {
+        "name":  "GRS",
+        "product_count":  60
+    },
+    {
+        "name":  "Goldwood",
+        "product_count":  3
+    },
+    {
+        "name":  "Grip Tools",
+        "product_count":  5
+    },
+    {
+        "name":  "HiVi",
+        "product_count":  52
+    },
+    {
+        "name":  "Huntkey",
+        "product_count":  5
+    },
+    {
+        "name":  "Hypex",
+        "product_count":  56
+    },
+    {
+        "name":  "ICEpower",
+        "product_count":  30
+    },
+    {
+        "name":  "IMG Stageline",
+        "product_count":  1
+    },
+    {
+        "name":  "Intertechnik",
+        "product_count":  75
+    },
+    {
+        "name":  "IsoTek",
+        "product_count":  8
+    },
+    {
+        "name":  "JBL Selenium",
+        "product_count":  13
+    },
+    {
+        "name":  "Jantzen Audio",
+        "product_count":  431
+    },
+    {
+        "name":  "Khadas",
+        "product_count":  13
+    },
+    {
+        "name":  "Lepai",
+        "product_count":  3
+    },
+    {
+        "name":  "Littelfuse",
+        "product_count":  6
+    },
+    {
+        "name":  "Lundahl",
+        "product_count":  42
+    },
+    {
+        "name":  "Markaudio",
+        "product_count":  18
+    },
+    {
+        "name":  "Mean Well",
+        "product_count":  49
+    },
+    {
+        "name":  "Monacor",
+        "product_count":  123
+    },
+    {
+        "name":  "Morel",
+        "product_count":  41
+    },
+    {
+        "name":  "Mundorf",
+        "product_count":  204
+    },
+    {
+        "name":  "Neutrik",
+        "product_count":  5
+    },
+    {
+        "name":  "Nobsound",
+        "product_count":  1
+    },
+    {
+        "name":  "PRV Audio",
+        "product_count":  74
+    },
+    {
+        "name":  "PURIFI",
+        "product_count":  31
+    },
+    {
+        "name":  "Peerless by Tymphany",
+        "product_count":  82
+    },
+    {
+        "name":  "Precision Sound",
+        "product_count":  4
+    },
+    {
+        "name":  "Punktkilde",
+        "product_count":  1
+    },
+    {
+        "name":  "Q Acoustics",
+        "product_count":  4
+    },
+    {
+        "name":  "QED",
+        "product_count":  58
+    },
+    {
+        "name":  "RAAL",
+        "product_count":  10
+    },
+    {
+        "name":  "REDCATT",
+        "product_count":  24
+    },
+    {
+        "name":  "RS Speakers ",
+        "product_count":  5
+    },
+    {
+        "name":  "Radian Audio",
+        "product_count":  20
+    },
+    {
+        "name":  "SB Acoustics",
+        "product_count":  131
+    },
+    {
+        "name":  "SB Audience",
+        "product_count":  40
+    },
+    {
+        "name":  "SEAS",
+        "product_count":  70
+    },
+    {
+        "name":  "SICA",
+        "product_count":  26
+    },
+    {
+        "name":  "SMSL",
+        "product_count":  49
+    },
+    {
+        "name":  "Scan-Speak",
+        "product_count":  161
+    },
+    {
+        "name":  "SoundCare",
+        "product_count":  13
+    },
+    {
+        "name":  "SoundImports",
+        "product_count":  7
+    },
+    {
+        "name":  "SoundImpress",
+        "product_count":  37
+    },
+    {
+        "name":  "SparkoS",
+        "product_count":  19
+    },
+    {
+        "name":  "Speaker Snap",
+        "product_count":  4
+    },
+    {
+        "name":  "Sure Electronics",
+        "product_count":  97
+    },
+    {
+        "name":  "Tang Band",
+        "product_count":  14
+    },
+    {
+        "name":  "Techflex",
+        "product_count":  26
+    },
+    {
+        "name":  "Tectonic Elements",
+        "product_count":  5
+    },
+    {
+        "name":  "VIABLUEâ?¢",
+        "product_count":  65
+    },
+    {
+        "name":  "Velleman",
+        "product_count":  22
+    },
+    {
+        "name":  "Vibrofiltr",
+        "product_count":  13
+    },
+    {
+        "name":  "Visaton",
+        "product_count":  64
+    },
+    {
+        "name":  "Volt Loudspeakers",
+        "product_count":  9
+    },
+    {
+        "name":  "Wavecor",
+        "product_count":  2
+    },
+    {
+        "name":  "Weller",
+        "product_count":  4
+    },
+    {
+        "name":  "WiiM",
+        "product_count":  12
+    },
+    {
+        "name":  "Xcite",
+        "product_count":  17
+    },
+    {
+        "name":  "Yung International",
+        "product_count":  1
+    },
+    {
+        "name":  "miniDSP",
+        "product_count":  39
+    }
+]

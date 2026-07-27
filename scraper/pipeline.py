@@ -239,7 +239,11 @@ class ScrapePipeline:
                     errors=str(e),
                 )
 
-    async def _process_product_list(self, product_list: List[Dict[str, Any]], category_slug: str = None):
+    async def _process_product_list(
+        self,
+        product_list: List[Dict[str, Any]],
+        category_slug: Optional[str] = None,
+    ):
         """Fetch details for all products in a list concurrently."""
         http_sem = asyncio.Semaphore(self.supplier.concurrency)
         db_sem = asyncio.Semaphore(20)
@@ -252,6 +256,13 @@ class ScrapePipeline:
                         product_summary.get("url", "")
                     )
                     product_data = self.supplier.extract_product_detail(detail_data, category_slug=category_slug)
+
+                    existing_ids = product_data.get("category_ids") or ""
+                    if category_slug and category_slug not in existing_ids:
+                        if existing_ids:
+                            existing_ids = existing_ids + "," + category_slug
+                        else:
+                            existing_ids = category_slug
 
                     async with db_sem:
                         async with async_session_factory() as db:
@@ -271,7 +282,7 @@ class ScrapePipeline:
                                 brand=product_data.get("brand"),
                                 currency=product_data.get("currency", "EUR"),
                                 url=product_data.get("url"),
-                                category_ids=product_data.get("category_ids"),
+                                category_ids=existing_ids,
                                 raw_json=product_data.get("raw_json"),
                                 images=product_data.get("images", []),
                                 attributes=product_data.get("attributes", []),

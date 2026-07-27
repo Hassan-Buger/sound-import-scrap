@@ -139,6 +139,29 @@ class ProductDetail(BaseModel):
         return data
 
 
+class ProductDescriptionOut(BaseModel):
+    id: int
+    sku: str
+    title: Optional[str] = None
+    regular_price: Optional[float] = None
+    short_description: Optional[str] = None
+    long_description: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_from_orm(cls, data):
+        if isinstance(data, Product):
+            return {
+                "id": data.id,
+                "sku": data.sku,
+                "title": data.title,
+                "regular_price": data.regular_price if data.regular_price is not None else data.price,
+                "short_description": data.short_description if data.short_description is not None else data.description,
+                "long_description": data.long_description,
+            }
+        return data
+
+
 class ChangedProductId(BaseModel):
     id: int
 

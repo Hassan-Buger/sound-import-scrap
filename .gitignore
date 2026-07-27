@@ -1,28 +1,21 @@
-# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.egg-info/
 dist/
 build/
-
-# Local environment
 .env
-*.db
-*.db-journal
-
-# IDE
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
 .vscode/
 .idea/
 *.swp
-
-# OS
+*.db
+*.db-journal
+*.sqlite3
 .DS_Store
 Thumbs.db
-
-# Exports
-export/
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
