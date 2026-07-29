@@ -13,7 +13,8 @@ from app.dependencies import get_db
 from app.models import Product, Category, ScrapeJob
 from app.schemas import (
     CategoryOut, BrandOut, ProductDetail, ProductListItem,
-    ProductDescriptionOut, ProductsResponse, ChangedProductsResponse,
+    ProductDescriptionOut, SpecificationOut,
+    ProductsResponse, ChangedProductsResponse,
     StatsOut, SyncResponse,
 )
 from app import crud
@@ -41,17 +42,21 @@ async def list_brands(
 @router.get("/products", response_model=ProductsResponse)
 async def list_products(
     page: int = Query(1, ge=1),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(20, ge=1, le=100),
     brand: Optional[str] = None,
     category: Optional[str] = None,
     search: Optional[str] = None,
+    stock_status: Optional[str] = None,
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("desc", description="asc or desc"),
     db: AsyncSession = Depends(get_db),
 ):
+    if stock_status and stock_status not in ("in_stock", "out_of_stock", "on_backorder"):
+        raise HTTPException(status_code=422, detail="Invalid stock_status. Use: in_stock, out_of_stock, on_backorder")
     products, total = await crud.get_products_paginated(
         db, page=page, per_page=limit, brand=brand,
         category_slug=category, search=search,
+        stock_status=stock_status,
         sort_by=sort_by, sort_order=sort_order,
     )
     return ProductsResponse(
@@ -69,7 +74,7 @@ async def get_product(
 ):
     product = await crud.get_product_by_id(db, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"})
     return ProductDetail.model_validate(product)
 
 
@@ -80,8 +85,23 @@ async def get_product_description(
 ):
     product = await crud.get_product_by_id(db, product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"})
     return ProductDescriptionOut.model_validate(product)
+
+
+@router.get("/product/{product_id}/specifications", response_model=List[SpecificationOut])
+async def get_product_specifications(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    product = await crud.get_product_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"})
+    attrs_sorted = sorted(product.attributes_rel, key=lambda a: a.sort_order or 0)
+    return [
+        SpecificationOut(name=a.attribute_name, value=a.attribute_value, sort_order=a.sort_order or 0)
+        for a in attrs_sorted
+    ]
 
 
 @router.get("/product/sku/{sku:path}", response_model=ProductDetail)

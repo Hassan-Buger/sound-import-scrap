@@ -1,7 +1,8 @@
 import json
 import logging
+import re
 import uuid
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from urllib.parse import urljoin
 
 from app.config import settings
@@ -15,6 +16,17 @@ class ProductScraper:
 
     IMAGE_CDN_BASE = "https://cdn.webshopapp.com/shops/188510/files/"
 
+    # Sections that belong in long_description
+    LONG_DESC_SECTIONS = {"highlights", "features", "product details", "benefits",
+                          "construction", "applications", "compatibility", "usage",
+                          "additional information", "description", "details", "specifications"}
+
+    # Sections to stop at
+    STOP_SECTIONS = {"reviews", "ratings", "alternatives", "related products",
+                     "recommended products", "frequently bought together",
+                     "recently viewed", "shipping", "returns", "payment",
+                     "support", "footer"}
+
     def __init__(self, client: HttpClient):
         self.client = client
 
@@ -26,138 +38,186 @@ class ProductScraper:
             data = data["product"]
         return data
 
-    def extract_product_data(self, raw: Dict[str, Any], category_slug: Optional[str] = None) -> Dict[str, Any]:
-        """Normalize raw product JSON into a structured dict for DB upsert."""
-        product_id = str(raw.get("id") or raw.get("productId") or raw.get("product_id", ""))
-        variant_id = raw.get("vid") or raw.get("variantId") or ""
-        sku = raw.get("sku") or raw.get("number") or raw.get("articleNumber") or variant_id or product_id
-        if not sku:
-            sku = f"SI-FALLBACK-{uuid.uuid4().hex[:12]}"
-        ean = raw.get("ean") or raw.get("gtin") or raw.get("upc")
-        title = raw.get("title") or raw.get("name") or raw.get("productName")
-        description = raw.get("description") or raw.get("shortDescription")
-        long_description = raw.get("longDescription") or raw.get("descriptionDetail")
+    # ------------------------------------------------------------------
+    # Normalization helpers
+    # ------------------------------------------------------------------
 
-        price_data = raw.get("price") or raw.get("prices") or {}
-        if isinstance(price_data, dict):
-            price = price_data.get("amount") or price_data.get("value") or price_data.get("price")
-        else:
-            price = price_data
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """Normalize text for comparison (strip tags, collapse whitespace)."""
+        import html
+        text = html.unescape(text)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = text.replace("\u00a0", " ")
+        text = re.sub(r"\s+", " ", text).strip().lower()
+        return text
 
-        stock_data = raw.get("stock") or raw.get("inventory") or raw.get("availability") or {}
-        if isinstance(stock_data, dict):
-            stock = stock_data.get("quantity") or stock_data.get("qty") or stock_data.get("stock")
-        else:
-            stock = None
+    @staticmethod
+    def _normalize_spec_name(name: str) -> str:
+        """Normalize a spec-name for de-duplication."""
+        import html
+        name = html.unescape(name)
+        name = re.sub(r":\s*$", "", name.strip())
+        name = re.sub(r"\s+", " ", name).strip().lower()
+        return name
 
-        stock_status = raw.get("stockStatus") or raw.get("availabilityText")
-        if isinstance(stock_data, dict):
-            stock_status = stock_status or stock_data.get("status") or stock_data.get("text")
+    # ------------------------------------------------------------------
+    # Description logic (Part 1 & 2)
+    # ------------------------------------------------------------------
 
-        brand_data = raw.get("brand") or raw.get("manufacturer") or {}
-        if isinstance(brand_data, dict):
-            brand = brand_data.get("name") or brand_data.get("title")
-        else:
-            brand = str(brand_data) if brand_data else None
+    def _build_descriptions(self, raw: Dict[str, Any]) -> Dict[str, str]:
+        """Build short_description and long_description from raw product data."""
+        content_html = raw.get("content")
+        raw_desc = (raw.get("description") or raw.get("shortDescription") or "").strip()
 
-        currency = raw.get("currency") or "EUR"
-        url = raw.get("url") or raw.get("productUrl") or raw.get("link")
-        # Make URL absolute
-        if url and not url.startswith("http"):
-            url = settings.base_url.rstrip("/") + "/en/" + url.lstrip("/")
+        short_desc = raw_desc
+        long_desc = None
 
-        # Use category from API if present, otherwise fall back to passed category_slug
-        categories = raw.get("categories") or raw.get("category") or []
-        category_ids = None
-        if isinstance(categories, list):
-            names = []
-            for cat in categories:
-                if isinstance(cat, dict):
-                    names.append(
-                        cat.get("name")
-                        or cat.get("title")
-                        or cat.get("slug")
-                        or cat.get("url")
-                        or str(cat.get("id", ""))
-                    )
-                elif isinstance(cat, str):
-                    names.append(cat)
-            if names:
-                category_ids = ",".join(names)
-        elif isinstance(categories, str):
-            category_ids = categories
-        # Fallback to category_slug from category page context
-        if not category_ids and category_slug:
-            category_ids = category_slug
+        if content_html and isinstance(content_html, str) and content_html.strip():
+            try:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(content_html, "html.parser")
 
-        images_list = self._extract_images(raw)
-        attributes_list = self._extract_attributes(raw)
+                # 1. Find the intro <p> tag, extract its text for short_desc,
+                #    then REMOVE it from the DOM so it can never appear in long_desc
+                intro_tag = self._find_intro_paragraph_tag(soup)
+                if intro_tag:
+                    short_desc = intro_tag.get_text(strip=True)
+                    intro_tag.decompose()
 
-        price_val = float(price) if price else None
+                # 2. Extract sections from the DOM (intro already removed)
+                long_desc = self._extract_long_description_sections(soup)
+            except Exception:
+                pass
 
-        rich_long_desc = self._build_rich_description(
-            raw, description, long_description, attributes_list
-        )
+        return {"short_description": short_desc or None,
+                "long_description": long_desc or None}
 
-        return {
-            "product_id": product_id,
-            "sku": str(sku),
-            "ean": str(ean) if ean else None,
-            "title": title,
-            "description": description,
-            "short_description": description,
-            "long_description": rich_long_desc,
-            "regular_price": price_val,
-            "price": price_val,
-            "stock": int(stock) if stock else None,
-            "stock_status": stock_status,
-            "brand": brand,
-            "currency": currency if currency else "EUR",
-            "url": url,
-            "category_ids": category_ids,
-            "raw_json": json.dumps(raw, ensure_ascii=False, default=str),
-            "images": images_list,
-            "attributes": attributes_list,
-        }
+    def _find_intro_paragraph_tag(self, soup: "BeautifulSoup") -> Optional[Any]:
+        """Return the first meaningful <p> tag for the intro."""
+        for tag in soup.find_all("p"):
+            text = tag.get_text(strip=True)
+            if len(text) < 80:
+                continue
+            if text.startswith("<"):
+                continue
+            if self._is_heading(tag):
+                continue
+            check = text.replace("\u00a0", " ")
+            if ". " not in check and ".\n" not in check:
+                continue
+            return tag
+        return None
 
-    def _build_rich_description(
-        self,
-        raw: Dict[str, Any],
-        description: Optional[str],
-        long_description: Optional[str],
-        attributes_list: List[Dict[str, Any]],
-    ) -> str:
-        """Build a comprehensive long description combining all available product details."""
+    def _extract_long_description_sections(self, soup: "BeautifulSoup") -> Optional[str]:
+        """Extract descriptive sections using DOM traversal.
+
+        Walks heading elements, collects each target section and its following
+        siblings until the next heading (or stop section). Intro <p> was already
+        removed from the DOM before calling this.
+        """
         parts = []
 
-        if long_description:
-            parts.append(long_description)
+        for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+            heading_text = heading.get_text(strip=True).lower()
 
-        if description and description != long_description:
-            parts.append(description)
+            if any(stop in heading_text for stop in self.STOP_SECTIONS):
+                break
 
-        specs_text = raw.get("specificationsText") or raw.get("featuresText")
-        if specs_text:
-            parts.append(specs_text)
+            if any(section in heading_text for section in self.LONG_DESC_SECTIONS):
+                section_parts = [str(heading)]
+                for sibling in heading.find_next_siblings():
+                    if sibling.name and sibling.name.startswith("h"):
+                        break
+                    section_parts.append(str(sibling))
+                combined = "".join(section_parts).strip()
+                if self._has_text(combined):
+                    parts.append(combined)
 
-        features = raw.get("features") or raw.get("highlights") or raw.get("keyFeatures") or []
-        if isinstance(features, list) and features:
-            feature_lines = []
-            for f in features:
-                if isinstance(f, dict):
-                    feature_lines.append(f.get("text") or f.get("name") or str(f.get("value", "")))
-                elif isinstance(f, str):
-                    feature_lines.append(f)
-            if feature_lines:
-                parts.append("Key Features:\n- " + "\n- ".join(feature_lines))
+        return "\n".join(parts) if parts else None
 
-        if attributes_list:
-            parts.append("Specifications:")
-            for attr in attributes_list:
-                parts.append(f"  {attr['attribute_name']}: {attr['attribute_value']}")
+    @staticmethod
+    def _has_text(html_str: str) -> bool:
+        from bs4 import BeautifulSoup as _BS
+        return bool(_BS(html_str, "html.parser").get_text(strip=True))
 
-        full = "\n\n".join(p for p in parts if p)
-        return full if full else long_description or description or ""
+    @staticmethod
+    def _is_heading(tag: "BeautifulSoup") -> bool:
+        return tag.name and tag.name.startswith("h")
+
+    # ------------------------------------------------------------------
+    # Specification extraction (Part 3)
+    # ------------------------------------------------------------------
+
+    def _extract_attributes(self, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract all product specifications as a sorted list of dicts.
+
+        Each item::
+
+            {"attribute_name": str, "attribute_value": str,
+             "sort_order": int, "normalized_name": str}
+        """
+        attributes: List[Dict[str, Any]] = []
+        seen_normalized: set = set()  # (normalized_name, normalized_value)
+
+        raw_specs = raw.get("specs")
+        if isinstance(raw_specs, dict):
+            # SoundImports format: {spec_id: {id, title, value}}
+            for spec_id, spec_data in raw_specs.items():
+                if isinstance(spec_data, dict):
+                    name = spec_data.get("title") or spec_data.get("name") or spec_data.get("label")
+                    value = spec_data.get("value") or spec_data.get("text")
+                    self._add_spec(attributes, seen_normalized, name, value)
+
+        raw_attrs = raw.get("attributes") or raw.get("specifications") or raw.get("properties") or {}
+        if isinstance(raw_attrs, dict):
+            for key, value in raw_attrs.items():
+                self._add_spec(attributes, seen_normalized, key, value)
+
+        specs_list = raw.get("specificationsList") or raw.get("featureList") or []
+        if isinstance(specs_list, list):
+            for item in specs_list:
+                if isinstance(item, dict):
+                    name = item.get("name") or item.get("label") or item.get("key")
+                    value = item.get("value") or item.get("text")
+                    self._add_spec(attributes, seen_normalized, name, value)
+
+        # Assign sort_order based on final list index
+        for i, attr in enumerate(attributes):
+            attr["sort_order"] = i
+
+        return attributes
+
+    def _add_spec(self, attributes: List[Dict[str, Any]],
+                  seen: set, name: Any, value: Any) -> None:
+        """Add a single spec entry if it passes validation and dedup."""
+        if not name:
+            return
+        name = str(name).strip()
+        if not name:
+            return
+        val = str(value).strip() if value is not None else ""
+        # Decode HTML entities
+        import html
+        name = html.unescape(name)
+        val = html.unescape(val)
+        # Normalize for dedup
+        norm_name = self._normalize_spec_name(name)
+        norm_val = val.lower().strip()
+        dedup_key = (norm_name, norm_val)
+        if dedup_key in seen:
+            return
+        seen.add(dedup_key)
+        attributes.append({
+            "attribute_name": name,
+            "attribute_value": val,
+            "sort_order": 0,  # will be set later
+            "normalized_name": norm_name,
+        })
+
+    # ------------------------------------------------------------------
+    # Image extraction
+    # ------------------------------------------------------------------
 
     def _extract_images(self, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
         images: List[Dict[str, Any]] = []
@@ -200,39 +260,87 @@ class ProductScraper:
             return f"{self.IMAGE_CDN_BASE}{image_ref}/500x500x2.jpg"
         return urljoin(settings.base_url + "/", image_ref)
 
-    def _extract_attributes(self, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
-        attributes: List[Dict[str, Any]] = []
-        seen_keys: set = set()
+    def extract_product_data(self, raw: Dict[str, Any], category_slug: Optional[str] = None) -> Dict[str, Any]:
+        """Normalize raw product JSON into a structured dict for DB upsert."""
+        product_id = str(raw.get("id") or raw.get("productId") or raw.get("product_id", ""))
+        variant_id = raw.get("vid") or raw.get("variantId") or ""
+        sku = raw.get("sku") or raw.get("number") or raw.get("articleNumber") or variant_id or product_id
+        if not sku:
+            sku = f"SI-FALLBACK-{uuid.uuid4().hex[:12]}"
+        ean = raw.get("ean") or raw.get("gtin") or raw.get("upc")
+        title = raw.get("title") or raw.get("name") or raw.get("productName")
 
-        spec_sources = [
-            raw.get("attributes", {}),
-            raw.get("specifications", {}),
-            raw.get("properties", {}),
-            raw.get("features", {}),
-        ]
+        price_data = raw.get("price") or raw.get("prices") or {}
+        if isinstance(price_data, dict):
+            price = price_data.get("amount") or price_data.get("value") or price_data.get("price")
+        else:
+            price = price_data
 
-        raw_attrs = raw.get("attributes") or raw.get("specifications") or raw.get("properties") or {}
-        if isinstance(raw_attrs, dict):
-            for key, value in raw_attrs.items():
-                if key and key not in seen_keys:
-                    seen_keys.add(key)
-                    val_str = str(value) if value is not None else ""
-                    attributes.append({
-                        "attribute_name": key,
-                        "attribute_value": val_str,
-                    })
+        stock_data = raw.get("stock") or raw.get("inventory") or raw.get("availability") or {}
+        if isinstance(stock_data, dict):
+            stock = stock_data.get("quantity") or stock_data.get("qty") or stock_data.get("stock")
+        else:
+            stock = None
 
-        specs_list = raw.get("specificationsList") or raw.get("featureList") or []
-        if isinstance(specs_list, list):
-            for item in specs_list:
-                if isinstance(item, dict):
-                    name = item.get("name") or item.get("label") or item.get("key")
-                    value = item.get("value") or item.get("text")
-                    if name and name not in seen_keys:
-                        seen_keys.add(name)
-                        attributes.append({
-                            "attribute_name": name,
-                            "attribute_value": str(value) if value else "",
-                        })
+        stock_status = raw.get("stockStatus") or raw.get("availabilityText")
+        if isinstance(stock_data, dict):
+            stock_status = stock_status or stock_data.get("status") or stock_data.get("text")
 
-        return attributes
+        brand_data = raw.get("brand") or raw.get("manufacturer") or {}
+        if isinstance(brand_data, dict):
+            brand = brand_data.get("name") or brand_data.get("title")
+        else:
+            brand = str(brand_data) if brand_data else None
+
+        currency = raw.get("currency") or "EUR"
+        url = raw.get("url") or raw.get("productUrl") or raw.get("link")
+        if url and not url.startswith("http"):
+            url = settings.base_url.rstrip("/") + "/en/" + url.lstrip("/")
+
+        categories = raw.get("categories") or raw.get("category") or []
+        category_ids = None
+        if isinstance(categories, list):
+            names = []
+            for cat in categories:
+                if isinstance(cat, dict):
+                    names.append(
+                        cat.get("name")
+                        or cat.get("title")
+                        or cat.get("slug")
+                        or cat.get("url")
+                        or str(cat.get("id", ""))
+                    )
+                elif isinstance(cat, str):
+                    names.append(cat)
+            if names:
+                category_ids = ",".join(names)
+        elif isinstance(categories, str):
+            category_ids = categories
+        if not category_ids and category_slug:
+            category_ids = category_slug
+
+        images_list = self._extract_images(raw)
+        attributes_list = self._extract_attributes(raw)
+        price_val = float(price) if price else None
+        descriptions = self._build_descriptions(raw)
+
+        return {
+            "product_id": product_id,
+            "sku": str(sku),
+            "ean": str(ean) if ean else None,
+            "title": title,
+            "description": descriptions["short_description"],
+            "short_description": descriptions["short_description"],
+            "long_description": descriptions["long_description"],
+            "regular_price": price_val,
+            "price": price_val,
+            "stock": int(stock) if stock else None,
+            "stock_status": stock_status,
+            "brand": brand,
+            "currency": currency if currency else "EUR",
+            "url": url,
+            "category_ids": category_ids,
+            "raw_json": json.dumps(raw, ensure_ascii=False, default=str),
+            "images": images_list,
+            "attributes": attributes_list,
+        }

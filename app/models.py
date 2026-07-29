@@ -86,6 +86,8 @@ class Attribute(Base):
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     attribute_name = Column(String(500), nullable=False)
     attribute_value = Column(Text, nullable=True)
+    normalized_name = Column(String(500), nullable=True, index=True)
+    sort_order = Column(Integer, default=0)
 
     product = relationship("Product", back_populates="attributes_rel")
 

@@ -79,6 +79,7 @@ def _apply_filters(
     brand: Optional[str],
     category_slug: Optional[str],
     search: Optional[str],
+    stock_status: Optional[str] = None,
 ):
     if brand:
         query = query.where(Product.brand == brand)
@@ -92,6 +93,9 @@ def _apply_filters(
         filter_cond = Product.title.ilike(pattern) | Product.sku.ilike(pattern) | Product.brand.ilike(pattern)
         query = query.where(filter_cond)
         count_query = count_query.where(filter_cond)
+    if stock_status:
+        query = query.where(Product.stock_status == stock_status)
+        count_query = count_query.where(Product.stock_status == stock_status)
     return query, count_query
 
 
@@ -114,19 +118,20 @@ async def get_products_paginated(
     brand: Optional[str] = None,
     category_slug: Optional[str] = None,
     search: Optional[str] = None,
+    stock_status: Optional[str] = None,
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = None,
 ) -> Tuple[List[Product], int]:
     query = select(Product)
     count_query = select(func.count(Product.id))
 
-    query, count_query = _apply_filters(query, count_query, brand, category_slug, search)
+    query, count_query = _apply_filters(query, count_query, brand, category_slug, search, stock_status)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
     query = _apply_sorting(query, sort_by, sort_order)
-    query = query.offset((page - 1) * per_page).limit(per_page)
+    query = query.offset((page - 1) * per_page).limit(per_page).options(selectinload(Product.images))
 
     result = await db.execute(query)
     products = list(result.scalars().all())
@@ -319,6 +324,8 @@ async def upsert_product(
                 product_id=product.id,
                 attribute_name=attr_data["attribute_name"],
                 attribute_value=attr_data.get("attribute_value"),
+                normalized_name=attr_data.get("normalized_name"),
+                sort_order=attr_data.get("sort_order", 0),
             )
             db.add(attr)
 
