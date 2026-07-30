@@ -83,10 +83,13 @@ class ProductScraper:
                 intro_tag = self._find_intro_paragraph_tag(soup)
                 if intro_tag:
                     short_desc = intro_tag.get_text(strip=True)
+                    content_container = intro_tag.parent
                     intro_tag.decompose()
+                else:
+                    content_container = soup
 
-                # 2. Extract sections from the DOM (intro already removed)
-                long_desc = self._extract_long_description_sections(soup)
+                # 2. Extract sections from the content container (intro already removed)
+                long_desc = self._extract_long_description_sections(content_container)
             except Exception:
                 pass
 
@@ -109,16 +112,21 @@ class ProductScraper:
             return tag
         return None
 
-    def _extract_long_description_sections(self, soup: "BeautifulSoup") -> Optional[str]:
-        """Extract descriptive sections using DOM traversal.
+    def _extract_long_description_sections(self, container: "BeautifulSoup") -> Optional[str]:
+        """Extract descriptive sections within a container using DOM traversal.
 
-        Walks heading elements, collects each target section and its following
-        siblings until the next heading (or stop section). Intro <p> was already
-        removed from the DOM before calling this.
+        Walks heading elements inside *container*, collects each target section
+        and its following siblings until the next heading (or stop section).
+        The intro <p> should already have been removed from the DOM before
+        calling this.
+
+        Using a scoped container (e.g. the intro paragraph's parent) avoids
+        picking up layout-level headings like ``<h2>Product description ...</h2>``
+        that sit outside the actual content area.
         """
         parts = []
 
-        for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+        for heading in container.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
             heading_text = heading.get_text(strip=True).lower()
 
             if any(stop in heading_text for stop in self.STOP_SECTIONS):
