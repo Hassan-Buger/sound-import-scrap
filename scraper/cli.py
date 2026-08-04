@@ -148,12 +148,15 @@ def product(url: str):
 @click.option("--port", type=int, default=None, help="API port")
 def serve(host: Optional[str], port: Optional[int]):
     """Start the FastAPI server."""
+    import os
     import uvicorn
+    host = host or os.getenv("HOST") or settings.api_host
+    port = port or int(os.getenv("PORT") or settings.api_port)
     uvicorn.run(
         "app.main:app",
-        host=host or settings.api_host,
-        port=port or settings.api_port,
-        reload=True,
+        host=host,
+        port=port,
+        reload=False,
         log_level=settings.log_level.lower(),
     )
 
