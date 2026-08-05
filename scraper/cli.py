@@ -150,8 +150,23 @@ def serve(host: Optional[str], port: Optional[int]):
     """Start the FastAPI server."""
     import os
     import uvicorn
+
+    env_port = os.getenv("PORT")
+    env_api_port = os.getenv("API_PORT")
+
+    # In Railway/Heroku/Render, PORT is automatically injected by the platform.
+    # Prioritize explicitly passed --port, then PORT, then API_PORT, then settings.api_port.
+    if port is None:
+        if env_port:
+            port = int(env_port)
+        elif env_api_port:
+            port = int(env_api_port)
+        else:
+            port = settings.api_port
+
     host = host or os.getenv("HOST") or settings.api_host
-    port = port or int(os.getenv("PORT") or settings.api_port)
+
+    logger.info("Starting uvicorn server on %s:%d", host, port)
     uvicorn.run(
         "app.main:app",
         host=host,
@@ -159,6 +174,7 @@ def serve(host: Optional[str], port: Optional[int]):
         reload=False,
         log_level=settings.log_level.lower(),
     )
+
 
 
 @cli.command()
