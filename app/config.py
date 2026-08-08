@@ -14,23 +14,28 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # NOTE: this default is only meant for local dev via docker-compose.
-    # If you see "ConnectionRefusedError" to localhost:5432 in a deployed
-    # environment (Railway, etc.), it means DATABASE_URL was never actually
-    # injected into this service and it silently fell back to this default.
-    database_url: str = "postgresql+asyncpg://scraper:scraper_pass@localhost:5432/soundimports"
+    # Default to SQLite for zero-setup local dev / unconfigured deploys.
+    # In production (Railway, Docker Compose), DATABASE_URL will override this.
+    database_url: str = "sqlite+aiosqlite:///./soundimports.db"
 
-    @field_validator("database_url")
+    @field_validator("database_url", mode="before")
     @classmethod
     def _normalize_database_url(cls, v: str) -> str:
         """
-        Many hosting providers (Railway, Render, Heroku, etc.) inject
-        DATABASE_URL as plain 'postgres://' or 'postgresql://', which is
-        the sync psycopg2-style scheme. SQLAlchemy's async engine needs the
-        '+asyncpg' driver explicitly, or it will fail to connect / pick the
-        wrong dialect. Normalize automatically so we don't depend on the
-        platform (or the human setting env vars) getting the scheme right.
+        Auto-detect database URLs injected by platforms (Railway, Heroku, Render).
+        Supports DATABASE_URL, POSTGRES_URL, DATABASE_PRIVATE_URL, DATABASE_PUBLIC_URL.
+        Converts plain 'postgres://' or 'postgresql://' to 'postgresql+asyncpg://'.
         """
+        import os
+        env_url = (
+            os.getenv("DATABASE_URL")
+            or os.getenv("POSTGRES_URL")
+            or os.getenv("DATABASE_PRIVATE_URL")
+            or os.getenv("DATABASE_PUBLIC_URL")
+        )
+        if env_url:
+            v = env_url
+
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://") and "+asyncpg" not in v:
