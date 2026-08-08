@@ -32,7 +32,6 @@ async def list_categories(
 
 
 @router.get("/category/{category_id_or_slug}", response_model=CategoryOut)
-@router.get("/categories/{category_id_or_slug}", response_model=CategoryOut)
 async def get_category(
     category_id_or_slug: str,
     db: AsyncSession = Depends(get_db),
@@ -44,7 +43,6 @@ async def get_category(
 
 
 @router.get("/category/{category_id_or_slug}/products", response_model=ProductsResponse)
-@router.get("/categories/{category_id_or_slug}/products", response_model=ProductsResponse)
 async def list_category_products(
     category_id_or_slug: str,
     page: int = Query(1, ge=1),
