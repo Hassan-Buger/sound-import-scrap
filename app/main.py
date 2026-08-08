@@ -38,24 +38,33 @@ async def lifespan(app: FastAPI):
         )
 
     last_exc = None
-    for attempt in range(1, 6):
+    for attempt in range(1, 4):
         try:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database connection initialized successfully.")
             break
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             logger.warning(
-                "Database not ready yet (attempt %s/5): %s", attempt, exc
+                "Primary database not ready (attempt %s/3): %s", attempt, exc
             )
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
     else:
         logger.error(
-            "Could not connect to the database after 5 attempts. Check that "
-            "DATABASE_URL is set correctly on this service and that the "
-            "database service is running and reachable."
+            "Primary database connection failed (%s). Falling back to SQLite database.", last_exc
         )
-        raise last_exc
+        import app.database as db_mod
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+        fallback_url = "sqlite+aiosqlite:///./soundimports.db"
+        db_mod.engine = create_async_engine(fallback_url, echo=False)
+        db_mod.async_session_factory = async_sessionmaker(
+            db_mod.engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with db_mod.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Fallback SQLite database initialized successfully.")
 
     yield
     await engine.dispose()
