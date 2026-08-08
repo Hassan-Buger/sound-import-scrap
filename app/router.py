@@ -52,6 +52,7 @@ async def list_category_products(
     brand: Optional[str] = None,
     search: Optional[str] = None,
     stock_status: Optional[str] = None,
+    include_children: bool = Query(False, description="If true, include products in sub-child categories. Default false (selected category only)."),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("desc", description="asc or desc"),
     db: AsyncSession = Depends(get_db),
@@ -72,6 +73,7 @@ async def list_category_products(
         category_slug=cat_target, search=search,
         stock_status=stock_status,
         sort_by=sort_by, sort_order=sort_order,
+        include_children=include_children,
     )
     return ProductsResponse(
         total=total,

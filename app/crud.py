@@ -155,6 +155,7 @@ async def get_products_paginated(
     stock_status: Optional[str] = None,
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = None,
+    include_children: bool = False,
 ) -> Tuple[List[Product], int]:
     query = select(Product)
     count_query = select(func.count(Product.id))
@@ -163,7 +164,10 @@ async def get_products_paginated(
     if category_slug:
         cat = await get_category_by_id_or_slug(db, category_slug)
         if cat:
-            family_slugs = await get_category_family_slugs(db, cat)
+            if include_children:
+                family_slugs = await get_category_family_slugs(db, cat)
+            else:
+                category_slug = cat.slug
 
     query, count_query = _apply_filters(
         query, count_query, brand, category_slug, search, stock_status, family_slugs=family_slugs

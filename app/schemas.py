@@ -75,7 +75,30 @@ TOP_LEVEL_PARENTS = {
 }
 
 
-def _resolve_primary_category(cats: List[str]) -> str:
+def format_category_name(slug: str) -> str:
+    if not slug:
+        return ""
+    clean = slug.strip().replace("-", " ")
+    terms = {
+        "diy": "DIY",
+        "ean": "EAN",
+        "sku": "SKU",
+        "usb": "USB",
+        "dac": "DAC",
+        "dsp": "DSP",
+        "rms": "RMS",
+    }
+    words = []
+    for word in clean.split():
+        w_lower = word.lower()
+        if w_lower in terms:
+            words.append(terms[w_lower])
+        else:
+            words.append(word.capitalize())
+    return " ".join(words)
+
+
+def _resolve_primary_category_slug(cats: List[str]) -> str:
     if not cats:
         return "Uncategorized"
     clean_cats = [c.strip() for c in cats if c and c.strip()]
@@ -85,6 +108,18 @@ def _resolve_primary_category(cats: List[str]) -> str:
         if c.lower() not in TOP_LEVEL_PARENTS:
             return c
     return clean_cats[-1]
+
+
+def _resolve_primary_category(cats: List[str]) -> str:
+    slug = _resolve_primary_category_slug(cats)
+    return format_category_name(slug) if slug != "Uncategorized" else "Uncategorized"
+
+
+def _resolve_category_path(cats: List[str]) -> List[str]:
+    if not cats:
+        return []
+    clean_slugs = [c.strip() for c in cats if c and c.strip()]
+    return [format_category_name(s) for s in clean_slugs]
 
 
 class ProductListItem(BaseModel):
@@ -101,6 +136,7 @@ class ProductListItem(BaseModel):
     url: Optional[str] = None
     category: str = "Uncategorized"
     categories: List[str] = []
+    category_slugs: List[str] = []
     images: List[ImageOut] = []
     updated_at: Optional[str] = None
 
@@ -122,7 +158,8 @@ class ProductListItem(BaseModel):
                 "currency": data.currency or "EUR",
                 "url": data.url,
                 "category": _resolve_primary_category(cats),
-                "categories": cats,
+                "categories": _resolve_category_path(cats),
+                "category_slugs": cats,
                 "images": [
                     ImageOut(id=i.id, src=i.image_url, sort_order=i.sort_order, is_cover=i.is_cover)
                     for i in data.images
@@ -147,6 +184,7 @@ class ProductDetail(BaseModel):
     url: Optional[str] = None
     category: str = "Uncategorized"
     categories: List[str] = []
+    category_slugs: List[str] = []
     images: List[ImageOut] = []
     attributes: List[AttributeOut] = []
     specifications: List[SpecificationOut] = []
@@ -172,7 +210,8 @@ class ProductDetail(BaseModel):
                 "currency": data.currency or "EUR",
                 "url": data.url,
                 "category": _resolve_primary_category(cats),
-                "categories": cats,
+                "categories": _resolve_category_path(cats),
+                "category_slugs": cats,
                 "images": [
                     ImageOut(id=i.id, src=i.image_url, sort_order=i.sort_order, is_cover=i.is_cover)
                     for i in data.images
