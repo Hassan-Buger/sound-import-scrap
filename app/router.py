@@ -31,6 +31,56 @@ async def list_categories(
     return cats
 
 
+@router.get("/category/{category_id_or_slug}", response_model=CategoryOut)
+@router.get("/categories/{category_id_or_slug}", response_model=CategoryOut)
+async def get_category(
+    category_id_or_slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    cat = await crud.get_category_by_id_or_slug(db, category_id_or_slug)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return cat
+
+
+@router.get("/category/{category_id_or_slug}/products", response_model=ProductsResponse)
+@router.get("/categories/{category_id_or_slug}/products", response_model=ProductsResponse)
+async def list_category_products(
+    category_id_or_slug: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    brand: Optional[str] = None,
+    search: Optional[str] = None,
+    stock_status: Optional[str] = None,
+    sort_by: Optional[str] = Query(None, description="Field to sort by"),
+    sort_order: Optional[str] = Query("desc", description="asc or desc"),
+    db: AsyncSession = Depends(get_db),
+):
+    if stock_status and stock_status not in ("in_stock", "out_of_stock", "on_backorder"):
+        raise HTTPException(status_code=422, detail="Invalid stock_status. Use: in_stock, out_of_stock, on_backorder")
+
+    cat = await crud.get_category_by_id_or_slug(db, category_id_or_slug)
+    if not cat and not category_id_or_slug.isdigit():
+        cat_target = category_id_or_slug
+    elif not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    else:
+        cat_target = cat.slug
+
+    products, total = await crud.get_products_paginated(
+        db, page=page, per_page=limit, brand=brand,
+        category_slug=cat_target, search=search,
+        stock_status=stock_status,
+        sort_by=sort_by, sort_order=sort_order,
+    )
+    return ProductsResponse(
+        total=total,
+        page=page,
+        limit=limit,
+        products=[ProductListItem.model_validate(p) for p in products],
+    )
+
+
 @router.get("/brands", response_model=List[BrandOut])
 async def list_brands(
     db: AsyncSession = Depends(get_db),

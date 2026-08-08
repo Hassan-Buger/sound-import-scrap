@@ -69,6 +69,24 @@ class CategoryOut(BaseModel):
         return data
 
 
+TOP_LEVEL_PARENTS = {
+    "speakers", "home-audio", "car-audio", "components", "accessories",
+    "audio-components", "crossover-components", "diy-kits"
+}
+
+
+def _resolve_primary_category(cats: List[str]) -> str:
+    if not cats:
+        return "Uncategorized"
+    clean_cats = [c.strip() for c in cats if c and c.strip()]
+    if not clean_cats:
+        return "Uncategorized"
+    for c in reversed(clean_cats):
+        if c.lower() not in TOP_LEVEL_PARENTS:
+            return c
+    return clean_cats[-1]
+
+
 class ProductListItem(BaseModel):
     id: int
     sku: str
@@ -103,7 +121,7 @@ class ProductListItem(BaseModel):
                 "ean": data.ean,
                 "currency": data.currency or "EUR",
                 "url": data.url,
-                "category": cats[0] if cats else "Uncategorized",
+                "category": _resolve_primary_category(cats),
                 "categories": cats,
                 "images": [
                     ImageOut(id=i.id, src=i.image_url, sort_order=i.sort_order, is_cover=i.is_cover)
@@ -153,7 +171,7 @@ class ProductDetail(BaseModel):
                 "ean": data.ean,
                 "currency": data.currency or "EUR",
                 "url": data.url,
-                "category": cats[0] if cats else "Uncategorized",
+                "category": _resolve_primary_category(cats),
                 "categories": cats,
                 "images": [
                     ImageOut(id=i.id, src=i.image_url, sort_order=i.sort_order, is_cover=i.is_cover)

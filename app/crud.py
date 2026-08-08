@@ -25,9 +25,37 @@ async def get_all_categories(db: AsyncSession) -> List[Category]:
 
 
 async def get_category_by_slug(db: AsyncSession, slug: str) -> Optional[Category]:
-    stmt = select(Category).where(Category.slug == slug)
+    stmt = select(Category).where(Category.slug == slug).options(selectinload(Category.children))
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_category_by_id(db: AsyncSession, category_id: int) -> Optional[Category]:
+    stmt = select(Category).where(Category.id == category_id).options(selectinload(Category.children))
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_category_by_id_or_slug(db: AsyncSession, id_or_slug: str) -> Optional[Category]:
+    if isinstance(id_or_slug, int) or (isinstance(id_or_slug, str) and id_or_slug.isdigit()):
+        cat = await get_category_by_id(db, int(id_or_slug))
+        if cat:
+            return cat
+    return await get_category_by_slug(db, str(id_or_slug))
+
+
+async def get_category_family_slugs(db: AsyncSession, category: Category) -> List[str]:
+    slugs = [category.slug]
+    all_cats = await get_all_categories(db)
+
+    def collect_children(cat_id: int):
+        for c in all_cats:
+            if c.parent_id == cat_id:
+                slugs.append(c.slug)
+                collect_children(c.id)
+
+    collect_children(category.id)
+    return list(set(slugs))
 
 
 async def upsert_category(
@@ -80,11 +108,17 @@ def _apply_filters(
     category_slug: Optional[str],
     search: Optional[str],
     stock_status: Optional[str] = None,
+    family_slugs: Optional[List[str]] = None,
 ):
     if brand:
         query = query.where(Product.brand == brand)
         count_query = count_query.where(Product.brand == brand)
-    if category_slug:
+    if family_slugs:
+        from sqlalchemy import or_
+        slug_filters = [Product.category_ids.like(f"%{s}%") for s in family_slugs]
+        query = query.where(or_(*slug_filters))
+        count_query = count_query.where(or_(*slug_filters))
+    elif category_slug:
         like_pattern = f"%{category_slug}%"
         query = query.where(Product.category_ids.like(like_pattern))
         count_query = count_query.where(Product.category_ids.like(like_pattern))
@@ -125,7 +159,15 @@ async def get_products_paginated(
     query = select(Product)
     count_query = select(func.count(Product.id))
 
-    query, count_query = _apply_filters(query, count_query, brand, category_slug, search, stock_status)
+    family_slugs = None
+    if category_slug:
+        cat = await get_category_by_id_or_slug(db, category_slug)
+        if cat:
+            family_slugs = await get_category_family_slugs(db, cat)
+
+    query, count_query = _apply_filters(
+        query, count_query, brand, category_slug, search, stock_status, family_slugs=family_slugs
+    )
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -136,6 +178,7 @@ async def get_products_paginated(
     result = await db.execute(query)
     products = list(result.scalars().all())
     return products, total
+
 
 
 async def export_products(

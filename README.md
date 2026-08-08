@@ -230,6 +230,19 @@ curl http://localhost:8000/api/categories
 ]
 ```
 
+### 3.1. `GET /api/category/{id_or_slug}/products` — Products by Category ID or Slug
+
+Returns products belonging to the specified category or any of its child subcategories. Supports Category ID (e.g. `3`) or Category Slug (e.g. `bookshelf-speakers`).
+
+```bash
+# Query products by category ID
+curl "http://localhost:8000/api/category/3/products?limit=20"
+
+# Query products by category slug
+curl "http://localhost:8000/api/category/bookshelf-speakers/products?limit=20"
+```
+
+
 ### 4. `GET /api/brands` — All Brands with Product Counts
 
 ```bash
