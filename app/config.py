@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         Auto-detect database URLs injected by platforms (Railway, Heroku, Render).
         Supports DATABASE_URL, POSTGRES_URL, DATABASE_PRIVATE_URL, DATABASE_PUBLIC_URL.
         Converts plain 'postgres://' or 'postgresql://' to 'postgresql+asyncpg://'.
+        Safely falls back to SQLite if URL is empty or an un-expanded Railway variable.
         """
         import os
         env_url = (
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
         )
         if env_url:
             v = env_url
+
+        if not v or not isinstance(v, str) or v.startswith("${{"):
+            return "sqlite+aiosqlite:///./soundimports.db"
 
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)

@@ -90,6 +90,11 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "SoundImports Scraper API is running", "docs": "/docs"}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
