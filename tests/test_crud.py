@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.database import Base
 from app.models import Category, Product, Image, Attribute
+from app.router import _build_category_tree
 
 
 @pytest.fixture
@@ -80,6 +81,43 @@ async def test_category_hierarchy(db_session):
     )
     assert len(result) == 1
     assert result[0].name == "Speakers"
+
+
+def test_category_tree_is_parent_to_child_not_reversed():
+    root = Category(
+        id=1,
+        name="Home Audio",
+        slug="home-audio",
+        canonical_path="/en/home-audio/",
+        url="/en/home-audio/",
+        level=1,
+    )
+    child = Category(
+        id=2,
+        parent_id=1,
+        name="Speakers",
+        slug="speakers",
+        canonical_path="/en/home-audio/speakers/",
+        url="/en/home-audio/speakers/",
+        level=2,
+    )
+    grandchild = Category(
+        id=3,
+        parent_id=2,
+        name="Woofers",
+        slug="woofers",
+        canonical_path="/en/home-audio/speakers/woofers/",
+        url="/en/home-audio/speakers/woofers/",
+        level=3,
+    )
+
+    tree = _build_category_tree([root, child, grandchild])
+
+    assert [node["name"] for node in tree] == ["Home Audio"]
+    assert [node["name"] for node in tree[0]["children"]] == ["Speakers"]
+    assert [node["name"] for node in tree[0]["children"][0]["children"]] == [
+        "Woofers"
+    ]
 
 
 @pytest.mark.asyncio

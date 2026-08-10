@@ -28,14 +28,50 @@ logger = logging.getLogger("app.router")
 router = APIRouter()
 
 
+def _build_category_tree(categories: List[Category]) -> List[dict]:
+    """Return a stable, parent-to-child category tree without ORM recursion.
+
+    Serializing a self-referential ORM relationship directly is fragile: it can
+    trigger lazy loads after the async session context and, on historical
+    deployments, has exposed the parent as ``children``.  Build plain response
+    objects from ``parent_id`` instead so the public API is deterministic.
+    """
+    nodes = {
+        category.id: {
+            "id": category.id,
+            "parent_id": category.parent_id,
+            "name": category.name,
+            "slug": category.slug,
+            "canonical_path": category.canonical_path,
+            "level": category.level,
+            "product_count": category.product_count,
+            "source_product_count": category.source_product_count,
+            "is_active": category.is_active,
+            "children": [],
+        }
+        for category in categories
+    }
+
+    roots = []
+    for category in categories:
+        node = nodes[category.id]
+        parent = nodes.get(category.parent_id)
+        if parent is None:
+            roots.append(node)
+        else:
+            parent["children"].append(node)
+
+    return roots
+
+
 @router.get("/categories", response_model=List[CategoryOut])
 async def list_categories(
     db: AsyncSession = Depends(get_db),
 ):
-    # Return one hierarchy rooted at top-level categories; returning every row
-    # here duplicates descendants both at the top level and under parents.
-    cats = await crud.get_categories(db, parent_id=None)
-    return cats
+    # Return one hierarchy rooted at top-level categories.  Building this from
+    # parent_id avoids recursive ORM serialization and guarantees that children
+    # are nested beneath their actual parent, never the other way round.
+    return _build_category_tree(await crud.get_all_categories(db))
 
 
 @router.get("/category/{category_id_or_slug}", response_model=CategoryOut)
