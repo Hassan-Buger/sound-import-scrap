@@ -22,6 +22,7 @@ from app.schemas import (
     SyncResponse,
 )
 from app import crud
+from app.config import settings
 from app.timeutils import utc_now
 
 logger = logging.getLogger("app.router")
