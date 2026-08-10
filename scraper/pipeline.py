@@ -687,12 +687,28 @@ class ScrapePipeline:
                             product_ids.add(cached_product_id)
                         return
 
-                    detail_data = await self.supplier.get_product_detail(
-                        product_url
-                    )
-                    product_data = self.supplier.extract_product_detail(
-                        detail_data, category_slug=category_path
-                    )
+                    try:
+                        detail_data = await self.supplier.get_product_detail(
+                            product_url
+                        )
+                        product_data = self.supplier.extract_product_detail(
+                            detail_data, category_slug=category_path
+                        )
+                    except RetryableHttpError as exc:
+                        # A small number of live product URLs return HTTP 200
+                        # with an empty/non-JSON body.  The category listing
+                        # still supplies a stable ID, SKU, title and price, so
+                        # retain that product and its category membership
+                        # rather than failing every category that contains it.
+                        if "Invalid JSON" not in str(exc):
+                            raise
+                        product_data = self._listing_fallback_product_data(
+                            raw_product, product_summary, category_path
+                        )
+                        logger.warning(
+                            "Using category-list fallback for malformed product detail %s",
+                            product_url,
+                        )
 
                     existing_ids = product_data.get("category_ids") or ""
 
@@ -755,6 +771,51 @@ class ScrapePipeline:
         tasks = [process_one(p) for p in product_list]
         await asyncio.gather(*tasks, return_exceptions=True)
         return found, failed, product_ids, failures
+
+    @staticmethod
+    def _listing_fallback_product_data(
+        raw_product: Dict[str, Any],
+        summary: Dict[str, Any],
+        category_path: Optional[str],
+    ) -> Dict[str, Any]:
+        """Build a minimal, non-destructive product record from a listing.
+
+        ``images`` and ``attributes`` are deliberately ``None``: passing empty
+        lists to the upsert would erase richer data obtained in a prior run.
+        """
+        sku = str(summary.get("sku") or summary.get("product_id") or "").strip()
+        if not sku:
+            raise ValueError("Product list entry has no SKU or product ID")
+
+        price = summary.get("price")
+        try:
+            price = float(price) if price not in (None, "") else None
+        except (TypeError, ValueError):
+            price = None
+
+        return {
+            "product_id": str(summary.get("product_id") or sku),
+            "sku": sku,
+            "ean": None,
+            "title": summary.get("name"),
+            "description": None,
+            "short_description": None,
+            "long_description": None,
+            "regular_price": price,
+            "price": price,
+            "stock": None,
+            "stock_status": None,
+            "brand": None,
+            "currency": "EUR",
+            "url": summary.get("url"),
+            "category_ids": "",
+            "raw_json": json.dumps(raw_product, ensure_ascii=False),
+            "images": None,
+            "attributes": None,
+            "product_categories": (
+                [{"canonical_path": category_path}] if category_path else []
+            ),
+        }
 
     @staticmethod
     def _product_list_key(product: Dict[str, Any]) -> str:
