@@ -21,14 +21,18 @@ class CategoryScraper:
     ) -> Dict[str, Any]:
         """Fetch a single page of products for a category.
 
-        ``?format=json&page=N&limit=M`` is appended to the category URL.
+        SoundImports' JSON endpoint ignores a ``page`` query parameter.  Its
+        page number is encoded in the path instead: ``/category/page2.html``.
+        ``format`` and ``limit`` remain normal query parameters.
         """
+        page_url = category_url
+        if page > 1:
+            page_url = f"{category_url.rstrip('/')}/page{page}.html"
         params = {
             "format": "json",
-            "page": page,
             "limit": limit,
         }
-        data = await self.client.fetch_json(category_url, params=params)
+        data = await self.client.fetch_json(page_url, params=params)
         return data
 
     def _get_collection(self, data: Dict[str, Any]) -> Dict[str, Any]:
