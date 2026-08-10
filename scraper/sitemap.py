@@ -1,12 +1,16 @@
 import re
 import logging
-from typing import List, Dict, Any, Optional, Tuple
-from urllib.parse import urlparse, urljoin
+from typing import List, Dict, Any, Optional
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
 from app.config import settings
 from scraper.client import HttpClient
+from scraper.urlutils import (
+    normalize_category_path,
+    category_slug_from_path,
+)
 
 logger = logging.getLogger("scraper.sitemap")
 
@@ -14,25 +18,46 @@ logger = logging.getLogger("scraper.sitemap")
 class SitemapParser:
     """Parses the HTML sitemap to discover categories and their hierarchy.
 
-    The SoundImports sitemap at /en/sitemap/ renders categories in nested
-    <ul> elements inside a div.gui-list section labelled "Categories:".
+    The SoundImports sitemap at ``/en/sitemap/`` renders categories inside a
+    ``div.gui-list[aria-labelledby*=categories]`` as nested ``<ul>/<li>``
+    elements, e.g.::
+
+        <div class="gui-list" aria-labelledby="gui-sitemap-group-categories-title">
+          <strong ...>Categories:</strong><br />
+          <ul>
+            <li><a href=".../en/home-audio/" title="Home audio">Home audio <span>(513)</span></a>
+              <ul>
+                <li><a href=".../en/home-audio/speakers/">Speakers <span>(114)</span></a>
+                  ...
+
+    Category identity is the **canonical path** (``/en/home-audio/speakers/``),
+    never the final slug. Two categories that share a slug in different branches
+    (e.g. ``/en/home-audio/amplifiers/switches/`` and
+    ``/en/accessories/electromechanics/switches/``) are both kept.
     """
 
     def __init__(self, client: HttpClient):
         self.client = client
+        self.last_diagnostics: Dict[str, Any] = {}
 
     async def parse(self) -> List[Dict[str, Any]]:
-        """Fetch and parse the sitemap, returning a flat list of categories.
+        """Fetch and parse the sitemap, returning a flat tree of categories.
 
-        Each entry:
-            - name: str
-            - slug: str
-            - url: str (absolute)
-            - level: int (0=root, 1=sub, 2=sub-sub)
-            - parent_slug: Optional[str]
+        Each entry contains::
+
+            name, slug, url, canonical_path, parent_path, level, source_count
         """
         html = await self.client.fetch_html(settings.sitemap_url)
-        return self._parse_html(html)
+        categories = self._parse_html(html)
+        if not categories:
+            raise ValueError(
+                "SoundImports sitemap contained no parseable categories; "
+                "the source markup may have changed"
+            )
+        logger.info("Discovered %d categories from sitemap", len(categories))
+        return categories
+
+    # ------------------------------------------------------------- parsing
 
     def _parse_html(self, html: str) -> List[Dict[str, Any]]:
         soup = BeautifulSoup(html, "lxml")
@@ -44,109 +69,133 @@ class SitemapParser:
         )
         if not categories_section:
             categories_section = soup.find(
-                "div", class_="gui-list",
+                "div",
+                class_="gui-list",
                 string=lambda t: t and "Categories" in t,
             )
 
-        categories: List[Dict[str, Any]] = []
-        seen_slugs: set = set()
-
+        result: List[Dict[str, Any]] = []
         if categories_section:
             root_ul = categories_section.find("ul")
             if root_ul:
-                self._parse_ul(root_ul, categories, seen_slugs, parent_slug=None, level=0)
+                self._parse_ul(root_ul, result, parent_node=None, level=1)
 
-        if not categories:
+        if not result:
             logger.warning("No categories found in gui-list; fallback parsing")
-            categories = self._parse_fallback(soup)
+            result = self._parse_fallback(soup)
 
-        logger.info("Discovered %d categories from sitemap", len(categories))
-        return categories
+        raw_count = len(result)
+        path_counts: Dict[str, int] = {}
+        for category in result:
+            path = category.get("canonical_path")
+            if path:
+                path_counts[path] = path_counts.get(path, 0) + 1
+        duplicate_paths = sorted(
+            path for path, count in path_counts.items() if count > 1
+        )
+        result = self._dedupe_by_path(result)
+        self.last_diagnostics = {
+            "raw_nodes": raw_count,
+            "normalized_nodes": len(result),
+            "duplicate_paths": duplicate_paths,
+        }
+        return result
 
     EXCLUDED_PATHS = (
-        "/brands/", "/service/", "/blogs/", "/account/",
-        "/compare/", "/cart/", "/wishlist/",
+        "/brands/",
+        "/service/",
+        "/blogs/",
+        "/blog/",
+        "/account/",
+        "/compare/",
+        "/cart/",
+        "/wishlist/",
+        "/pages/",
     )
 
     def _parse_ul(
         self,
         ul_tag: Tag,
         result: List[Dict[str, Any]],
-        seen_slugs: set,
-        parent_slug: Optional[str],
+        parent_node: Optional[Dict[str, Any]],
         level: int,
     ):
+        """Recursively walk nested ``<ul>`` elements building the category tree.
+
+        Parentage is derived from the actual DOM nesting (the parent node's
+        canonical path), never from slug similarity.
+        """
         for li in ul_tag.find_all("li", recursive=False):
-            a_tag = li.find("a", href=True) if li.name == "li" else None
+            a_tag = (
+                li.find("a", href=True, recursive=False)
+                if li.name == "li"
+                else None
+            )
             if not a_tag:
                 continue
 
             href = a_tag.get("href", "")
-            name = a_tag.get_text(strip=True)
+            name = self._clean_name(a_tag.get_text(strip=True))
             if not name or not href:
                 continue
 
-            if any(excl in href for excl in self.EXCLUDED_PATHS):
-                continue
-
-            name = self._clean_name(name)
-            if not name:
+            if any(excl in href.lower() for excl in self.EXCLUDED_PATHS):
                 continue
 
             full_url = urljoin(settings.base_url, href)
-            slug = self._extract_slug(full_url)
-            if not slug:
+            canonical_path = normalize_category_path(full_url)
+            if not canonical_path or canonical_path == "/":
                 continue
 
-            if slug in seen_slugs:
-                continue
-            seen_slugs.add(slug)
-
-            entry = {
+            node = {
                 "name": name,
-                "slug": slug,
+                "slug": category_slug_from_path(canonical_path),
                 "url": full_url,
+                "canonical_path": canonical_path,
+                "parent_path": parent_node["canonical_path"] if parent_node else None,
                 "level": level,
-                "parent_slug": parent_slug,
+                "source_count": self._extract_count(a_tag),
             }
-            result.append(entry)
+            result.append(node)
 
-            child_ul = li.find("ul")
+            child_ul = li.find("ul", recursive=False)
             if child_ul:
-                self._parse_ul(child_ul, result, seen_slugs, parent_slug=slug, level=level + 1)
-
-    def _clean_name(self, raw_name: str) -> str:
-        name = raw_name.strip()
-        name = re.sub(r'\s*\(\d+\)\s*$', '', name)
-        name = name.strip()
-        return name
+                self._parse_ul(child_ul, result, parent_node=node, level=level + 1)
 
     def _parse_fallback(self, soup: BeautifulSoup) -> List[Dict[str, Any]]:
-        categories: List[Dict[str, Any]] = []
-        seen_slugs: set = set()
+        result: List[Dict[str, Any]] = []
 
         for ul in soup.find_all("ul"):
-            links = ul.find_all("a", href=True)
-            if len(links) < 3:
-                continue
-            top_level_count = 0
-            for li in ul.find_all("li", recursive=False):
-                if li.find("a", href=True):
-                    top_level_count += 1
+            top_level_count = sum(
+                1
+                for li in ul.find_all("li", recursive=False)
+                if li.find("a", href=True)
+            )
             if top_level_count < 3:
                 continue
-            hrefs = [a.get("href", "") for a in links]
-            cat_hrefs = [h for h in hrefs if "/en/" in h and "/en/brands/" not in h and "/en/service/" not in h]
+            hrefs = [a.get("href", "") for a in ul.find_all("a", href=True)]
+            cat_hrefs = [
+                h
+                for h in hrefs
+                if "/en/" in h and not any(e in h for e in self.EXCLUDED_PATHS)
+            ]
             if len(cat_hrefs) < 3:
                 continue
-            return self._parse_ul_fallback(ul, seen_slugs)
+            result = self._parse_ul_fallback(ul, parent_node=None, level=1)
+            if result:
+                break
 
-        return categories
+        return result
 
-    def _parse_ul_fallback(self, ul_tag: Tag, seen_slugs: set, parent_slug: Optional[str] = None, level: int = 0) -> List[Dict[str, Any]]:
+    def _parse_ul_fallback(
+        self,
+        ul_tag: Tag,
+        parent_node: Optional[Dict[str, Any]],
+        level: int,
+    ) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
         for li in ul_tag.find_all("li", recursive=False):
-            a_tag = li.find("a", href=True)
+            a_tag = li.find("a", href=True, recursive=False)
             if not a_tag:
                 continue
             href = a_tag.get("href", "")
@@ -155,38 +204,76 @@ class SitemapParser:
                 continue
             if not href.startswith("http") and not href.startswith("/"):
                 continue
-            if "/brands/" in href or "/service/" in href or "/blogs/" in href or "/account/" in href:
+            if any(excl in href.lower() for excl in self.EXCLUDED_PATHS):
                 continue
 
             full_url = urljoin(settings.base_url, href)
-            slug = self._extract_slug(full_url)
-            if not slug or slug in seen_slugs:
+            canonical_path = normalize_category_path(full_url)
+            if not canonical_path or canonical_path == "/":
                 continue
-            seen_slugs.add(slug)
 
-            result.append({
+            node = {
                 "name": name,
-                "slug": slug,
+                "slug": category_slug_from_path(canonical_path),
                 "url": full_url,
+                "canonical_path": canonical_path,
+                "parent_path": parent_node["canonical_path"] if parent_node else None,
                 "level": level,
-                "parent_slug": parent_slug,
-            })
+                "source_count": self._extract_count(a_tag),
+            }
+            result.append(node)
 
-            child_ul = li.find("ul")
+            child_ul = li.find("ul", recursive=False)
             if child_ul:
-                result.extend(self._parse_ul_fallback(child_ul, seen_slugs, parent_slug=slug, level=level + 1))
+                result.extend(
+                    self._parse_ul_fallback(child_ul, parent_node=node, level=level + 1)
+                )
 
         return result
 
-    def _extract_slug(self, url: str) -> str:
-        parsed = urlparse(url)
-        path = parsed.path.strip("/")
-        parts = [p for p in path.split("/") if p and p != "en"]
-        if parts:
-            return parts[-1]
-        return ""
+    # ------------------------------------------------------------- helpers
 
-    def _slugify(self, name: str) -> str:
+    @staticmethod
+    def _dedupe_by_path(categories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        seen: set = set()
+        cleaned: List[Dict[str, Any]] = []
+        for cat in categories:
+            path = cat.get("canonical_path")
+            if not path or path in seen:
+                logger.warning(
+                    "Skipping duplicate canonical path: %s (%s)",
+                    path,
+                    cat.get("name"),
+                )
+                continue
+            seen.add(path)
+            cleaned.append(cat)
+        return cleaned
+
+    @staticmethod
+    def _extract_count(a_tag: Tag) -> int:
+        """Extract the product count from ``<a>Name <span>(N)</span></a>``."""
+        span = a_tag.find("span")
+        if span:
+            match = re.search(r"\((\d{1,8})\)", span.get_text(strip=True))
+            if match:
+                return int(match.group(1))
+        text = a_tag.get_text(strip=True)
+        match = re.search(r"\((\d{1,8})\)$", text)
+        if match:
+            return int(match.group(1))
+        return 0
+
+    def _clean_name(self, raw_name: str) -> str:
+        name = raw_name.strip()
+        name = re.sub(r"\s*\(\d+\)\s*$", "", name)
+        return name.strip()
+
+    def _extract_slug(self, url: str) -> str:
+        return category_slug_from_path(normalize_category_path(url))
+
+    @staticmethod
+    def _slugify(name: str) -> str:
         slug = name.lower().strip()
         slug = re.sub(r"[^\w\s-]", "", slug)
         slug = re.sub(r"[\s_]+", "-", slug)

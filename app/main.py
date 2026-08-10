@@ -21,7 +21,9 @@ logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.database import engine, Base
+    from app.database import engine, async_session_factory
+    from app.migrations import upgrade_database
+    from app import crud
 
     # Log (with credentials stripped) what we're actually trying to connect
     # to, so misconfigured env vars are obvious in the deploy logs instead
@@ -40,9 +42,17 @@ async def lifespan(app: FastAPI):
     last_exc = None
     for attempt in range(1, 4):
         try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database connection initialized successfully.")
+            await upgrade_database()
+            async with async_session_factory() as session:
+                interrupted = await crud.mark_running_jobs_interrupted(
+                    session, settings.job_stale_after
+                )
+            if interrupted:
+                logger.warning(
+                    "Marked %d abandoned scrape job(s) interrupted and resumable",
+                    interrupted,
+                )
+            logger.info("Database migrations applied successfully.")
             break
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
@@ -51,20 +61,11 @@ async def lifespan(app: FastAPI):
             )
             await asyncio.sleep(2)
     else:
-        logger.error(
-            "Primary database connection failed (%s). Falling back to SQLite database.", last_exc
-        )
-        import app.database as db_mod
-        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
-        fallback_url = "sqlite+aiosqlite:///./soundimports.db"
-        db_mod.engine = create_async_engine(fallback_url, echo=False)
-        db_mod.async_session_factory = async_sessionmaker(
-            db_mod.engine, class_=AsyncSession, expire_on_commit=False
-        )
-        async with db_mod.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Fallback SQLite database initialized successfully.")
+        # Falling back from PostgreSQL to a fresh local SQLite file creates a
+        # split-brain deployment and makes persisted scrape progress disappear.
+        raise RuntimeError(
+            f"Database migration/connection failed after 3 attempts: {last_exc}"
+        ) from last_exc
 
     yield
     await engine.dispose()

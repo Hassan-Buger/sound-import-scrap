@@ -3,6 +3,7 @@
 Note: These tests use a synchronous SQLite database for simplicity.
 In production, PostgreSQL with async is used. This tests the logic only.
 """
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -26,16 +27,22 @@ def db_session():
 
 @pytest.mark.asyncio
 async def test_upsert_category_new(db_session):
-    from app.crud import upsert_category
+    from app.crud import upsert_category_with_parent
 
     from sqlalchemy import select, text
 
-    cat = Category(name="Test Category", slug="test-category", url="/en/test-category/", level=0)
+    cat = Category(
+        name="Test Category",
+        slug="test-category",
+        canonical_path="/en/test-category/",
+        url="/en/test-category/",
+        level=1,
+    )
     db_session.add(cat)
     db_session.commit()
 
     result = db_session.execute(
-        select(Category).where(Category.slug == "test-category")
+        select(Category).where(Category.canonical_path == "/en/test-category/")
     ).scalar_one_or_none()
     assert result is not None
     assert result.name == "Test Category"
@@ -45,17 +52,32 @@ async def test_upsert_category_new(db_session):
 async def test_category_hierarchy(db_session):
     from sqlalchemy import select
 
-    parent = Category(name="Home Audio", slug="home-audio", url="/en/home-audio/", level=0)
-    child = Category(name="Speakers", slug="speakers", url="/en/home-audio/speakers/", level=1, parent_id=1)
+    parent = Category(
+        name="Home Audio",
+        slug="home-audio",
+        canonical_path="/en/home-audio/",
+        url="/en/home-audio/",
+        level=1,
+    )
+    child = Category(
+        name="Speakers",
+        slug="speakers",
+        canonical_path="/en/home-audio/speakers/",
+        url="/en/home-audio/speakers/",
+        level=2,
+        parent_id=1,
+    )
     db_session.add(parent)
     db_session.flush()
     child.parent_id = parent.id
     db_session.add(child)
     db_session.commit()
 
-    result = db_session.execute(
-        select(Category).where(Category.parent_id == parent.id)
-    ).scalars().all()
+    result = (
+        db_session.execute(select(Category).where(Category.parent_id == parent.id))
+        .scalars()
+        .all()
+    )
     assert len(result) == 1
     assert result[0].name == "Speakers"
 
@@ -97,8 +119,15 @@ async def test_upsert_product_with_images_and_attributes(db_session):
     db_session.add(product)
     db_session.flush()
 
-    img = Image(product_id=product.id, image_url="https://example.com/img.jpg", sort_order=0, is_cover=True)
-    attr = Attribute(product_id=product.id, attribute_name="Color", attribute_value="Black")
+    img = Image(
+        product_id=product.id,
+        image_url="https://example.com/img.jpg",
+        sort_order=0,
+        is_cover=True,
+    )
+    attr = Attribute(
+        product_id=product.id, attribute_name="Color", attribute_value="Black"
+    )
     db_session.add(img)
     db_session.add(attr)
     db_session.commit()

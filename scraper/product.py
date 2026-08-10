@@ -1,12 +1,12 @@
 import json
 import logging
 import re
-import uuid
 from typing import Dict, Any, Optional, List, Tuple
 from urllib.parse import urljoin
 
 from app.config import settings
 from scraper.client import HttpClient
+from scraper.urlutils import normalize_category_path, category_slug_from_path
 
 logger = logging.getLogger("scraper.product")
 
@@ -17,18 +17,46 @@ class ProductScraper:
     IMAGE_CDN_BASE = "https://cdn.webshopapp.com/shops/188510/files/"
 
     # Sections that belong in long_description
-    LONG_DESC_SECTIONS = {"highlights", "features", "product details", "benefits",
-                          "construction", "applications", "compatibility", "usage",
-                          "additional information", "description", "details", "specifications"}
+    LONG_DESC_SECTIONS = {
+        "highlights",
+        "features",
+        "product details",
+        "benefits",
+        "construction",
+        "applications",
+        "compatibility",
+        "usage",
+        "additional information",
+        "description",
+        "details",
+        "specifications",
+    }
 
     # Sections to stop at
-    STOP_SECTIONS = {"reviews", "ratings", "alternatives", "related products",
-                     "recommended products", "frequently bought together",
-                     "recently viewed", "shipping", "returns", "payment",
-                     "support", "footer"}
+    STOP_SECTIONS = {
+        "reviews",
+        "ratings",
+        "alternatives",
+        "related products",
+        "recommended products",
+        "frequently bought together",
+        "recently viewed",
+        "shipping",
+        "returns",
+        "payment",
+        "support",
+        "footer",
+    }
 
     def __init__(self, client: HttpClient):
         self.client = client
+
+    @staticmethod
+    def _first_present(*values):
+        for value in values:
+            if value is not None and value != "":
+                return value
+        return None
 
     async def fetch_detail(self, product_url: str) -> Dict[str, Any]:
         """Fetch full product JSON from the detail endpoint."""
@@ -46,6 +74,7 @@ class ProductScraper:
     def _normalize_text(text: str) -> str:
         """Normalize text for comparison (strip tags, collapse whitespace)."""
         import html
+
         text = html.unescape(text)
         text = re.sub(r"<[^>]+>", "", text)
         text = text.replace("\u00a0", " ")
@@ -56,6 +85,7 @@ class ProductScraper:
     def _normalize_spec_name(name: str) -> str:
         """Normalize a spec-name for de-duplication."""
         import html
+
         name = html.unescape(name)
         name = re.sub(r":\s*$", "", name.strip())
         name = re.sub(r"\s+", " ", name).strip().lower()
@@ -76,6 +106,7 @@ class ProductScraper:
         if content_html and isinstance(content_html, str) and content_html.strip():
             try:
                 from bs4 import BeautifulSoup
+
                 soup = BeautifulSoup(content_html, "html.parser")
 
                 # 1. Find the intro <p> tag, extract its text for short_desc,
@@ -93,8 +124,10 @@ class ProductScraper:
             except Exception:
                 pass
 
-        return {"short_description": short_desc or None,
-                "long_description": long_desc or None}
+        return {
+            "short_description": short_desc or None,
+            "long_description": long_desc or None,
+        }
 
     def _find_intro_paragraph_tag(self, soup: "BeautifulSoup") -> Optional[Any]:
         """Return the first meaningful <p> tag for the intro."""
@@ -112,7 +145,9 @@ class ProductScraper:
             return tag
         return None
 
-    def _extract_long_description_sections(self, container: "BeautifulSoup") -> Optional[str]:
+    def _extract_long_description_sections(
+        self, container: "BeautifulSoup"
+    ) -> Optional[str]:
         """Extract descriptive sections within a container using DOM traversal.
 
         Walks heading elements inside *container*, collects each target section
@@ -147,6 +182,7 @@ class ProductScraper:
     @staticmethod
     def _has_text(html_str: str) -> bool:
         from bs4 import BeautifulSoup as _BS
+
         return bool(_BS(html_str, "html.parser").get_text(strip=True))
 
     @staticmethod
@@ -173,11 +209,20 @@ class ProductScraper:
             # SoundImports format: {spec_id: {id, title, value}}
             for spec_id, spec_data in raw_specs.items():
                 if isinstance(spec_data, dict):
-                    name = spec_data.get("title") or spec_data.get("name") or spec_data.get("label")
+                    name = (
+                        spec_data.get("title")
+                        or spec_data.get("name")
+                        or spec_data.get("label")
+                    )
                     value = spec_data.get("value") or spec_data.get("text")
                     self._add_spec(attributes, seen_normalized, name, value)
 
-        raw_attrs = raw.get("attributes") or raw.get("specifications") or raw.get("properties") or {}
+        raw_attrs = (
+            raw.get("attributes")
+            or raw.get("specifications")
+            or raw.get("properties")
+            or {}
+        )
         if isinstance(raw_attrs, dict):
             for key, value in raw_attrs.items():
                 self._add_spec(attributes, seen_normalized, key, value)
@@ -196,8 +241,9 @@ class ProductScraper:
 
         return attributes
 
-    def _add_spec(self, attributes: List[Dict[str, Any]],
-                  seen: set, name: Any, value: Any) -> None:
+    def _add_spec(
+        self, attributes: List[Dict[str, Any]], seen: set, name: Any, value: Any
+    ) -> None:
         """Add a single spec entry if it passes validation and dedup."""
         if not name:
             return
@@ -207,6 +253,7 @@ class ProductScraper:
         val = str(value).strip() if value is not None else ""
         # Decode HTML entities
         import html
+
         name = html.unescape(name)
         val = html.unescape(val)
         # Normalize for dedup
@@ -216,12 +263,14 @@ class ProductScraper:
         if dedup_key in seen:
             return
         seen.add(dedup_key)
-        attributes.append({
-            "attribute_name": name,
-            "attribute_value": val,
-            "sort_order": 0,  # will be set later
-            "normalized_name": norm_name,
-        })
+        attributes.append(
+            {
+                "attribute_name": name,
+                "attribute_value": val,
+                "sort_order": 0,  # will be set later
+                "normalized_name": norm_name,
+            }
+        )
 
     # ------------------------------------------------------------------
     # Image extraction
@@ -233,7 +282,12 @@ class ProductScraper:
 
         image_sources = []
 
-        cover = raw.get("cover") or raw.get("image") or raw.get("mainImage") or raw.get("thumbnail")
+        cover = (
+            raw.get("cover")
+            or raw.get("image")
+            or raw.get("mainImage")
+            or raw.get("thumbnail")
+        )
         if cover:
             image_sources.append(("cover", cover))
 
@@ -241,7 +295,12 @@ class ProductScraper:
         if isinstance(gallery, list):
             for i, img in enumerate(gallery):
                 if isinstance(img, dict):
-                    url = img.get("url") or img.get("src") or img.get("path") or img.get("image")
+                    url = (
+                        img.get("url")
+                        or img.get("src")
+                        or img.get("path")
+                        or img.get("image")
+                    )
                 elif isinstance(img, str):
                     url = img
                 else:
@@ -253,11 +312,13 @@ class ProductScraper:
             url_str = str(url)
             if url_str and url_str not in seen_urls:
                 seen_urls.add(url_str)
-                images.append({
-                    "image_url": self._build_image_url(url_str),
-                    "sort_order": sort_order,
-                    "is_cover": label == "cover",
-                })
+                images.append(
+                    {
+                        "image_url": self._build_image_url(url_str),
+                        "sort_order": sort_order,
+                        "is_cover": label == "cover",
+                    }
+                )
 
         return images
 
@@ -268,31 +329,148 @@ class ProductScraper:
             return f"{self.IMAGE_CDN_BASE}{image_ref}/500x500x2.jpg"
         return urljoin(settings.base_url + "/", image_ref)
 
-    def extract_product_data(self, raw: Dict[str, Any], category_slug: Optional[str] = None) -> Dict[str, Any]:
+    @staticmethod
+    def _slugify_category(raw: str) -> str:
+        """Best-effort slug for a category name/path fragment.
+
+        Prefers the canonical path leaf; falls back to a simple slugify so the
+        legacy ``category_ids`` column keeps a usable value.
+        """
+        if not raw:
+            return ""
+        path = normalize_category_path(raw, base_url=settings.base_url)
+        slug = category_slug_from_path(path)
+        if slug:
+            return slug
+        slug = raw.lower().strip()
+        slug = re.sub(r"[^\w\s-]", "", slug)
+        slug = re.sub(r"[\s_]+", "-", slug)
+        slug = re.sub(r"-+", "-", slug)
+        return slug.strip("-")
+
+    def _extract_product_categories(
+        self, raw: Dict[str, Any], category_slug: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Extract the authoritative list of categories for a product.
+
+        SoundImports product JSON exposes ``product.categories`` as a dict
+        keyed by numeric category id, where each node is::
+
+            {
+              "id": 4401362, "parent": ..., "path": [...ids...],
+              "depth": 3, "url": "home-audio/speakers/bookshelf-speakers",
+              "title": "Bookshelf speakers", "count": 52
+            }
+
+        Every node is normalized to a canonical path so the relationship is
+        keyed by stable category identity, never by slug alone.
+        """
+        result: List[Dict[str, Any]] = []
+        seen_paths: set = set()
+
+        categories = raw.get("categories") or raw.get("category") or []
+        if isinstance(categories, dict):
+            raw_nodes = list(categories.values())
+        elif isinstance(categories, list):
+            raw_nodes = categories
+        else:
+            raw_nodes = []
+
+        for node in raw_nodes:
+            if not isinstance(node, dict):
+                continue
+            raw_url = node.get("url") or node.get("path_url") or node.get("link") or ""
+            title = node.get("title") or node.get("name") or node.get("slug") or ""
+            canonical_path = normalize_category_path(
+                raw_url, base_url=settings.base_url.rstrip("/") + "/en/"
+            )
+            if not canonical_path or canonical_path == "/":
+                continue
+            if canonical_path in seen_paths:
+                continue
+            seen_paths.add(canonical_path)
+            cat_id = node.get("id") or node.get("category_id")
+            result.append(
+                {
+                    "category_id": str(cat_id) if cat_id is not None else None,
+                    "canonical_path": canonical_path,
+                    "slug": category_slug_from_path(canonical_path),
+                    "name": title,
+                    "url": canonical_path.lstrip("/"),
+                }
+            )
+
+        # A product discovered inside a category page must always be associated
+        # with that source category even if the detail JSON omits it.
+        if category_slug:
+            source_path = normalize_category_path(
+                category_slug,
+                base_url=settings.base_url.rstrip("/") + "/en/",
+            )
+            if source_path and source_path != "/" and source_path not in seen_paths:
+                result.append(
+                    {
+                        "category_id": None,
+                        "canonical_path": source_path,
+                        "slug": category_slug_from_path(source_path),
+                        "name": category_slug,
+                        "url": source_path.lstrip("/"),
+                    }
+                )
+
+        return result
+
+    def extract_product_data(
+        self, raw: Dict[str, Any], category_slug: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Normalize raw product JSON into a structured dict for DB upsert."""
-        product_id = str(raw.get("id") or raw.get("productId") or raw.get("product_id", ""))
+        product_id = str(
+            raw.get("id") or raw.get("productId") or raw.get("product_id", "")
+        )
         variant_id = raw.get("vid") or raw.get("variantId") or ""
-        sku = raw.get("sku") or raw.get("number") or raw.get("articleNumber") or variant_id or product_id
+        sku = (
+            raw.get("sku")
+            or raw.get("number")
+            or raw.get("articleNumber")
+            or variant_id
+            or product_id
+        )
         if not sku:
-            sku = f"SI-FALLBACK-{uuid.uuid4().hex[:12]}"
+            # A random fallback creates a new product on every rerun. Missing
+            # stable identity is a data-quality failure and must be visible.
+            raise ValueError("Product detail has neither SKU nor stable product ID")
         ean = raw.get("ean") or raw.get("gtin") or raw.get("upc")
         title = raw.get("title") or raw.get("name") or raw.get("productName")
 
-        price_data = raw.get("price") or raw.get("prices") or {}
+        price_data = raw.get("price")
+        if price_data is None:
+            price_data = raw.get("prices") or {}
         if isinstance(price_data, dict):
-            price = price_data.get("amount") or price_data.get("value") or price_data.get("price")
+            price = self._first_present(
+                price_data.get("amount"),
+                price_data.get("value"),
+                price_data.get("price"),
+            )
         else:
             price = price_data
 
-        stock_data = raw.get("stock") or raw.get("inventory") or raw.get("availability") or {}
+        stock_data = raw.get("stock")
+        if stock_data is None:
+            stock_data = raw.get("inventory") or raw.get("availability") or {}
         if isinstance(stock_data, dict):
-            stock = stock_data.get("quantity") or stock_data.get("qty") or stock_data.get("stock")
+            stock = self._first_present(
+                stock_data.get("quantity"),
+                stock_data.get("qty"),
+                stock_data.get("stock"),
+            )
         else:
-            stock = None
+            stock = stock_data
 
         stock_status = raw.get("stockStatus") or raw.get("availabilityText")
         if isinstance(stock_data, dict):
-            stock_status = stock_status or stock_data.get("status") or stock_data.get("text")
+            stock_status = (
+                stock_status or stock_data.get("status") or stock_data.get("text")
+            )
 
         brand_data = raw.get("brand") or raw.get("manufacturer") or {}
         if isinstance(brand_data, dict):
@@ -303,33 +481,30 @@ class ProductScraper:
         currency = raw.get("currency") or "EUR"
         url = raw.get("url") or raw.get("productUrl") or raw.get("link")
         if url and not url.startswith("http"):
-            url = settings.base_url.rstrip("/") + "/en/" + url.lstrip("/")
+            url = urljoin(settings.base_url.rstrip("/") + "/en/", url)
 
-        categories = raw.get("categories") or raw.get("category") or []
+        product_categories = self._extract_product_categories(
+            raw, category_slug=category_slug
+        )
+
+        # Legacy comma-separated leaf slugs, retained for backward
+        # compatibility/diagnostics. The authoritative relationships live in
+        # product_categories (a list of category nodes with canonical paths).
         category_ids = None
-        if isinstance(categories, list):
-            names = []
-            for cat in categories:
-                if isinstance(cat, dict):
-                    names.append(
-                        cat.get("name")
-                        or cat.get("title")
-                        or cat.get("slug")
-                        or cat.get("url")
-                        or str(cat.get("id", ""))
-                    )
-                elif isinstance(cat, str):
-                    names.append(cat)
-            if names:
-                category_ids = ",".join(names)
-        elif isinstance(categories, str):
-            category_ids = categories
-        if not category_ids and category_slug:
-            category_ids = category_slug
+        slugs = []
+        for pc in product_categories:
+            slug = pc.get("slug")
+            if slug and slug not in slugs:
+                slugs.append(slug)
+        if slugs:
+            category_ids = ",".join(slugs)
+        source_slug = self._slugify_category(category_slug) if category_slug else None
+        if not category_ids and source_slug:
+            category_ids = source_slug
 
         images_list = self._extract_images(raw)
         attributes_list = self._extract_attributes(raw)
-        price_val = float(price) if price else None
+        price_val = float(price) if price is not None and price != "" else None
         descriptions = self._build_descriptions(raw)
 
         return {
@@ -342,12 +517,13 @@ class ProductScraper:
             "long_description": descriptions["long_description"],
             "regular_price": price_val,
             "price": price_val,
-            "stock": int(stock) if stock else None,
+            "stock": int(stock) if stock is not None and stock != "" else None,
             "stock_status": stock_status,
             "brand": brand,
             "currency": currency if currency else "EUR",
             "url": url,
             "category_ids": category_ids,
+            "product_categories": product_categories,
             "raw_json": json.dumps(raw, ensure_ascii=False, default=str),
             "images": images_list,
             "attributes": attributes_list,

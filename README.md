@@ -18,6 +18,7 @@
 8. [Project Structure](#project-structure)
 9. [Configuration](#configuration)
 10. [Database Schema](#database-schema)
+11. [Production Reliability and Recovery](#production-reliability-and-recovery)
 
 ---
 
@@ -49,7 +50,7 @@
 
 ### What Gets Scraped
 
-- **172 categories** in a 3-level hierarchy (e.g., `Home Audio > Speakers > Bookshelf Speakers`)
+- **All live sitemap categories** at arbitrary hierarchy depth (not a fixed count or three-level model)
 - **~4,200 unique products** across all categories (each product may appear in multiple categories)
 - **Per product:** SKU, EAN, title, short/long description, price, stock, brand, images, technical attributes, categories
 
@@ -123,7 +124,7 @@ python -m scraper.cli scrape
 The scraper follows this pipeline:
 
 ```
-Sitemap HTML → 172 Categories → Each Category (paginated) → Product Detail (JSON) → Database
+Sitemap HTML → Canonical category tree → Paginated listings → Product detail → Relational memberships → Audit
 ```
 
 ### Scraper Commands
@@ -135,11 +136,20 @@ docker compose run --rm scraper scrape
 # Incremental (resume if previous run was interrupted)
 docker compose run --rm scraper scrape --incremental
 
-# Override concurrency (default 50)
+# Override product concurrency for this invocation (default 20)
 docker compose run --rm scraper scrape --concurrency 30
 
 # List discovered categories from sitemap (without scraping)
 docker compose run --rm scraper categories
+
+# Reconcile live source tree, database hierarchy, counts, and failure state
+docker compose run --rm scraper audit-categories --verbose
+
+# Machine-readable audit (suitable for monitoring)
+docker compose run --rm scraper audit-categories --json
+
+# Repair missing/changed category rows without deleting products
+docker compose run --rm scraper audit-categories --fix
 
 # Test a single category page
 docker compose run --rm scraper category "https://www.soundimports.eu/en/home-audio/speakers/" --limit 5
@@ -151,24 +161,25 @@ docker compose run --rm scraper product "https://www.soundimports.eu/en/hivi-os-
 **Scraper Output (Terminal):**
 
 ```
-2026-07-09 14:46:10 [INFO] scraper.pipeline: Discovered 172 categories
+2026-07-09 14:46:10 [INFO] scraper.pipeline: Discovered N source categories
 2026-07-09 14:46:11 [INFO] scraper.pipeline: Category started: Woofers (...)
 ...
 2026-07-09 14:52:25 [INFO] scraper.pipeline: Scrape finished in 377.4s:
-  172 categories, 14619 products (14619 new, 0 updated, 0 failed)
+  N categories, M unique products (new/updated/failed counters follow)
 
 Scrape completed successfully!
-  Categories discovered: 172
-  Categories completed:  172
-  Products total:        14619
-  Products new:          14619
+  Categories discovered: N
+  Categories completed:  N
+  Products total:        M
+  Products new:          M
   Products updated:      0
   Products failed:       0
   Pages fetched:         265
   Time elapsed:          377.4s
 ```
 
-> **Note:** The "14,619 products total" counts each product-category relationship. Unique SKUs = ~4,206 (each product appears in ~3.5 categories on average).
+> **Note:** `products_total` is unique within the run. Relationship creation,
+> existing-link, and stale-link removal counters are reported separately.
 
 ---
 
@@ -195,7 +206,7 @@ curl http://localhost:8000/api/stats
 ```json
 {
   "total_products": 4206,
-  "total_categories": 172,
+  "total_categories": 177,
   "total_brands": 82,
   "last_sync": "2026-07-09T14:52:25.720298"
 }
@@ -427,7 +438,7 @@ curl -s "http://localhost:8000/api/products/changed?since=2026-01-01" | python -
 ### Option 4: Pytest (Automated Test Suite)
 
 ```bash
-# Run all 21 tests
+# Run the complete unit/integration suite
 pytest tests/ -v
 
 # With coverage
@@ -476,7 +487,7 @@ After the scraper completes, these files are created in the `export/` directory:
 
 ```
 export/
-├── categories.json          # All 172 categories in hierarchy
+├── categories.json          # All discovered categories in hierarchy
 ├── brands.json              # All 82 brands with product counts
 └── products/
     ├── HI-VI-OS-10.json     # One file per product (named by SKU)
@@ -839,7 +850,7 @@ soundimports-scraper/
 │       └── 002_add_new_fields.py  # Added regular_price, short_description
 │
 ├── export/                        # Auto-generated JSON files after scrape
-│   ├── categories.json            # All 172 categories
+│   ├── categories.json            # All discovered categories
 │   ├── brands.json                # All 82 brands
 │   └── products/{sku}.json        # One file per product
 │
@@ -862,8 +873,16 @@ All settings via environment variables or `.env` file:
 | `DATABASE_URL` | `sqlite+aiosqlite:///./soundimports.db` | SQLite (development — no Docker needed) |
 | `BASE_URL` | `https://www.soundimports.eu` | SoundImports base URL |
 | `SITEMAP_URL` | `https://www.soundimports.eu/en/sitemap/` | Sitemap for category discovery |
-| `CONCURRENCY` | `50` | Max concurrent HTTP requests |
-| `MAX_RETRIES` | `5` | Retry attempts per failed request |
+| `SCRAPER_CONCURRENCY` | `20` | Legacy overall HTTP concurrency alias |
+| `SCRAPER_CATEGORY_CONCURRENCY` | `5` | Maximum category workers |
+| `SCRAPER_PRODUCT_CONCURRENCY` | `20` | Global product/detail HTTP limit |
+| `SCRAPER_REQUEST_DELAY` | `0.1` | Minimum delay between request starts |
+| `SCRAPER_RATE_LIMIT` | `0` | Optional requests/second cap; `0` disables it |
+| `SCRAPER_MAX_RETRIES` | `5` | HTTP attempts for retryable timeouts, 429, and 5xx responses |
+| `SCRAPER_CATEGORY_RETRIES` | `3` | Whole-category attempts after incomplete pagination/product work |
+| `SCRAPER_TIMEOUT` | `30` | Per-request timeout in seconds |
+| `SCRAPER_CATEGORY_DEACTIVATION_THRESHOLD` | `2` | Successful sitemap runs a path must be absent from before deactivation |
+| `SCRAPER_JOB_STALE_AFTER` | `120` | Seconds without a persisted heartbeat before a running job can be reclaimed |
 | `API_HOST` | `0.0.0.0` | FastAPI bind address |
 | `API_PORT` | `8000` | FastAPI port |
 | `JSON_EXPORT_DIR` | `export` | Directory for auto-generated JSON files |
@@ -888,7 +907,7 @@ All settings via environment variables or `.env` file:
 | `stock_status` | varchar(50) | `stock_status` | `in_stock`, `out_of_stock` |
 | `brand` | varchar(500) | `brand` | Brand name |
 | `raw_json` | text | *(never exposed)* | Full supplier JSON (future-proof) |
-| `category_ids` | text | `categories` | Comma-separated category slugs |
+| `category_ids` | text | legacy fallback | Deprecated comma-separated slugs retained for compatibility only |
 
 ### Related tables
 
@@ -897,6 +916,112 @@ All settings via environment variables or `.env` file:
 - **`attributes`** — Key-value technical specs (e.g., Impedance → "8 Ohm")
 - **`scrape_jobs`** — Scrape run history with status, counts, timing
 - **`scrape_progress`** — Per-category progress tracking for resume support
+
+---
+
+## Production Reliability and Recovery
+
+### Category identity and hierarchy
+
+The final URL slug is not globally unique. Category identity is the normalized
+path, for example `/en/home-audio/speakers/`. Normalization removes query
+strings, fragments, and session IDs; resolves relative links; collapses duplicate
+slashes; normalizes case and encoding; and always adds a trailing slash. Sitemap
+DOM nesting supplies `parent_path`; parents are never guessed from a slug.
+Arbitrary depth is supported, and duplicate slugs in separate branches remain
+separate database rows.
+
+```text
+live sitemap DOM
+  -> canonical category nodes
+  -> canonical-path upsert and parent-path resolution
+  -> persisted category progress
+  -> paginated product discovery
+  -> SKU product upsert + product_categories link
+  -> distinct family-count reconciliation
+  -> SUCCESS / PARTIAL_SUCCESS / FAILED
+```
+
+`product_categories` is the authoritative many-to-many relationship, with
+primary key `(product_id, category_id)`. `product_count` is a distinct family
+count: products linked to the category or any descendant are counted once, even
+if the same product is linked to both parent and child. The legacy
+`products.category_ids` column is retained for compatibility but is not used for
+filtering or counting.
+
+### Retry and failure semantics
+
+- HTTP 408, 425, 429, 500, 502, 503, and 504 responses plus connection/timeouts
+  are retried with exponential backoff and jitter. `Retry-After` is honored.
+- Permanent 4xx responses are recorded without repeated requests.
+- Empty, repeated, or missing pagination pages, list-count mismatches, and any
+  failed product detail make a category incomplete and retryable.
+- Stale direct category memberships are removed only after every page and
+  product detail for that category succeeds.
+- A run with failed/skipped categories, failed products, or source/DB count
+  discrepancies cannot report `SUCCESS`. If no category succeeds it is
+  `FAILED`; otherwise it is `PARTIAL_SUCCESS`.
+
+### Restart and incremental recovery
+
+Each selected category has one `scrape_progress` row per job with discovery,
+running, retrying, completed, or failed state; attempts, pages, counts, and the
+last error are persisted. Completed rows are durable checkpoints and are not
+reset during resume. At API startup, a job left `running` by a terminated process
+is marked `interrupted`. The next same-type API trigger or CLI run resumes that
+job and skips its completed categories. A database unique lease prevents any
+second full or incremental scrape from launching while one is already running.
+A persisted heartbeat renews
+the job lease; a crashed scraper becomes reclaimable after
+`SCRAPER_JOB_STALE_AFTER` seconds.
+
+The application does not silently fall back from PostgreSQL to SQLite. Startup
+applies Alembic migrations and fails visibly if the configured database cannot
+be reached or migrated, preserving Railway's single source of truth.
+
+### Migration and deployment
+
+Migration `004` is non-destructive. It adds canonical identity and status
+columns, creates `product_categories`, backfills unambiguous legacy slug
+relationships, and retains `products.category_ids`. Ambiguous duplicate-slug
+references are skipped and written to
+`migration_reports/004_category_backfill.txt` when the filesystem is writable.
+
+The app recognizes historical databases created with
+`Base.metadata.create_all()`, stamps only an exact known revision, and then runs
+normal Alembic upgrades. Partially migrated unversioned schemas fail closed.
+For an explicit Railway pre-deploy or manual deployment step, run:
+
+```bash
+alembic upgrade head
+```
+
+Back up PostgreSQL before its first production migration. Do not stamp a
+revision manually unless the current schema was independently verified.
+
+### Diagnosing missing data
+
+```bash
+python -m scraper.cli audit-categories --verbose
+python -m scraper.cli audit-categories --json
+python -m scraper.cli audit-categories --category switches
+python -m scraper.cli audit-categories --fix
+```
+
+The audit reports exact missing/stale paths, duplicate slugs/names/paths,
+orphans, parent and depth mismatches, source-vs-family-count differences, latest
+progress states, attempts, pages, product totals, and last errors. `--fix` only
+reconciles category rows and hierarchy; it does not fabricate product links or
+delete product data.
+
+### Recovery procedure
+
+1. Confirm `DATABASE_URL` still points to the Railway PostgreSQL service.
+2. Run `alembic upgrade head` and review the migration backfill report.
+3. Trigger the same scrape type again; an interrupted job is resumed.
+4. Run `audit-categories --verbose` and investigate every failed path/count.
+5. Use `audit-categories --fix` only for category-row/hierarchy drift, then rerun
+   the scraper to create verified product memberships.
 
 ---
 

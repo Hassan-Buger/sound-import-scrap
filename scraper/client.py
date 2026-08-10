@@ -1,18 +1,13 @@
 import asyncio
 import json
 import logging
+import random
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional, Dict, Any
 from urllib.parse import urljoin
 
 import aiohttp
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
-
 from app.config import settings
 
 logger = logging.getLogger("scraper.client")
@@ -20,6 +15,25 @@ logger = logging.getLogger("scraper.client")
 
 class HttpClientError(Exception):
     pass
+
+
+class RetryableHttpError(HttpClientError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: Optional[int] = None,
+        retry_after: Optional[float] = None,
+    ):
+        super().__init__(message)
+        self.status = status
+        self.retry_after = retry_after
+
+
+class NonRetryableHttpError(HttpClientError):
+    def __init__(self, message: str, *, status: Optional[int] = None):
+        super().__init__(message)
+        self.status = status
 
 
 class HttpClient:
@@ -35,12 +49,15 @@ class HttpClient:
         user_agent: str = settings.user_agent,
     ):
         self.base_url = base_url
-        self.max_retries = max_retries
+        self.max_retries = max(1, max_retries)
+        self.concurrency = max(1, concurrency)
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.user_agent = user_agent
-        self.semaphore = asyncio.Semaphore(concurrency)
-        self.request_delay = request_delay
-        self._last_request = 0.0
+        self.semaphore = asyncio.Semaphore(self.concurrency)
+        rate_delay = 1.0 / settings.rate_limit if settings.rate_limit > 0 else 0.0
+        self.request_delay = max(0.0, request_delay, rate_delay)
+        self._next_request_at = 0.0
+        self._rate_lock = asyncio.Lock()
         self._session: Optional[aiohttp.ClientSession] = None
         self._stats = {"requests": 0, "failures": 0, "retries": 0}
 
@@ -49,32 +66,116 @@ class HttpClient:
             self._session = aiohttp.ClientSession(
                 timeout=self.timeout,
                 headers={"User-Agent": self.user_agent},
-                connector=aiohttp.TCPConnector(ssl=False, limit=0),
+                connector=aiohttp.TCPConnector(limit=self.concurrency),
             )
         return self._session
 
-    def _rate_limit(self):
-        now = asyncio.get_event_loop().time()
-        elapsed = now - self._last_request
-        if elapsed < self.request_delay:
-            return self.request_delay - elapsed
-        return 0
+    async def _wait_for_rate_limit(self) -> None:
+        if self.request_delay <= 0:
+            return
+        loop = asyncio.get_running_loop()
+        async with self._rate_lock:
+            now = loop.time()
+            delay = max(0.0, self._next_request_at - now)
+            if delay:
+                await asyncio.sleep(delay)
+            self._next_request_at = loop.time() + self.request_delay
 
     def _build_url(self, path: str) -> str:
         if path.startswith("http://") or path.startswith("https://"):
             return path
         return urljoin(self.base_url, path)
 
-    def _build_retry_decorator(self):
-        return retry(
-            stop=stop_after_attempt(self.max_retries),
-            wait=wait_exponential(multiplier=1, min=1, max=30),
-            retry=retry_if_exception_type(
-                (aiohttp.ClientError, asyncio.TimeoutError, HttpClientError)
-            ),
-            before_sleep=before_sleep_log(logger, logging.WARNING),
-            reraise=True,
-        )
+    @staticmethod
+    def _retry_after_seconds(raw: Optional[str]) -> Optional[float]:
+        if not raw:
+            return None
+        try:
+            return max(0.0, float(raw))
+        except (TypeError, ValueError):
+            try:
+                when = parsedate_to_datetime(raw)
+                if when.tzinfo is None:
+                    when = when.replace(tzinfo=timezone.utc)
+                return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+            except (TypeError, ValueError, OverflowError):
+                return None
+
+    async def _request(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]],
+        *,
+        expect_json: bool,
+        retry_enabled: bool,
+    ):
+        full_url = self._build_url(url)
+        attempts = self.max_retries if retry_enabled else 1
+
+        for attempt in range(1, attempts + 1):
+            try:
+                async with self.semaphore:
+                    await self._wait_for_rate_limit()
+                    session = await self._get_session()
+                    logger.debug("Fetching %s", full_url)
+                    async with session.get(full_url, params=params) as resp:
+                        self._stats["requests"] += 1
+                        if resp.status != 200:
+                            body = (await resp.text())[:200]
+                            message = f"HTTP {resp.status} for {full_url}: {body}"
+                            if resp.status in {408, 425, 429, 500, 502, 503, 504}:
+                                raise RetryableHttpError(
+                                    message,
+                                    status=resp.status,
+                                    retry_after=self._retry_after_seconds(
+                                        resp.headers.get("Retry-After")
+                                    ),
+                                )
+                            raise NonRetryableHttpError(message, status=resp.status)
+
+                        if not expect_json:
+                            return await resp.text()
+                        text = await resp.text()
+                        try:
+                            return json.loads(text)
+                        except json.JSONDecodeError as exc:
+                            raise RetryableHttpError(
+                                f"Invalid JSON from {full_url}: {text[:200]}"
+                            ) from exc
+
+            except NonRetryableHttpError:
+                self._stats["failures"] += 1
+                raise
+            except RetryableHttpError as exc:
+                retry_exc = exc
+            except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as exc:
+                retry_exc = RetryableHttpError(
+                    f"{type(exc).__name__} for {full_url}: {exc}"
+                )
+
+            if attempt >= attempts:
+                self._stats["failures"] += 1
+                logger.error(
+                    "Failed to fetch %s after %d attempt(s): %s",
+                    full_url,
+                    attempts,
+                    retry_exc,
+                )
+                raise retry_exc
+
+            self._stats["retries"] += 1
+            retry_after = getattr(retry_exc, "retry_after", None)
+            wait = retry_after if retry_after is not None else min(30.0, 2 ** (attempt - 1))
+            wait += random.uniform(0.0, min(0.5, wait * 0.1))
+            logger.warning(
+                "Request attempt %d/%d failed for %s (%s); retrying in %.2fs",
+                attempt,
+                attempts,
+                full_url,
+                retry_exc,
+                wait,
+            )
+            await asyncio.sleep(wait)
 
     async def fetch_json(
         self,
@@ -82,46 +183,9 @@ class HttpClient:
         params: Optional[Dict[str, Any]] = None,
         retry: bool = True,
     ) -> Dict[str, Any]:
-        full_url = self._build_url(url)
-
-        async def _do_fetch():
-            async with self.semaphore:
-                delay = self._rate_limit()
-                if delay > 0:
-                    await asyncio.sleep(delay)
-
-                session = await self._get_session()
-                self._last_request = asyncio.get_event_loop().time()
-
-                logger.debug("Fetching %s", full_url)
-                async with session.get(full_url, params=params) as resp:
-                    self._stats["requests"] += 1
-                    if resp.status != 200:
-                        text = await resp.text()
-                        raise HttpClientError(
-                            f"HTTP {resp.status} for {full_url}: {text[:200]}"
-                        )
-                    content_type = resp.content_type
-                    if "json" in content_type:
-                        return await resp.json()
-                    text = await resp.text()
-                    try:
-                        return json.loads(text)
-                    except json.JSONDecodeError:
-                        raise HttpClientError(
-                            f"Non-JSON response from {full_url}: {text[:200]}"
-                        )
-
-        if retry:
-            retry_decorator = self._build_retry_decorator()
-            try:
-                return await retry_decorator(_do_fetch)()
-            except Exception as e:
-                self._stats["failures"] += 1
-                logger.error("Failed to fetch %s after %d retries: %s", full_url, self.max_retries, e)
-                raise
-        else:
-            return await _do_fetch()
+        return await self._request(
+            url, params, expect_json=True, retry_enabled=retry
+        )
 
     async def fetch_html(
         self,
@@ -129,36 +193,9 @@ class HttpClient:
         params: Optional[Dict[str, Any]] = None,
         retry: bool = True,
     ) -> str:
-        full_url = self._build_url(url)
-
-        async def _do_fetch():
-            async with self.semaphore:
-                delay = self._rate_limit()
-                if delay > 0:
-                    await asyncio.sleep(delay)
-
-                session = await self._get_session()
-                self._last_request = asyncio.get_event_loop().time()
-
-                logger.debug("Fetching HTML %s", full_url)
-                async with session.get(full_url, params=params) as resp:
-                    self._stats["requests"] += 1
-                    if resp.status != 200:
-                        raise HttpClientError(
-                            f"HTTP {resp.status} for {full_url}"
-                        )
-                    return await resp.text()
-
-        if retry:
-            retry_decorator = self._build_retry_decorator()
-            try:
-                return await retry_decorator(_do_fetch)()
-            except Exception as e:
-                self._stats["failures"] += 1
-                logger.error("Failed to fetch HTML %s: %s", full_url, e)
-                raise
-        else:
-            return await _do_fetch()
+        return await self._request(
+            url, params, expect_json=False, retry_enabled=retry
+        )
 
     @property
     def stats(self) -> Dict[str, int]:

@@ -11,23 +11,23 @@ def test_parse_html(sample_sitemap_html):
 
     home_audio = [c for c in result if c["slug"] == "home-audio"]
     assert len(home_audio) > 0
-    assert home_audio[0]["level"] == 0
-    assert home_audio[0]["parent_slug"] is None
+    assert home_audio[0]["level"] == 1
+    assert home_audio[0]["parent_path"] is None
 
     speakers = [c for c in result if c["slug"] == "speakers"]
     assert len(speakers) > 0
-    assert speakers[0]["level"] == 1
-    assert speakers[0]["parent_slug"] == "home-audio"
+    assert speakers[0]["level"] == 2
+    assert speakers[0]["parent_path"] == "/en/home-audio/"
 
     bookshelf = [c for c in result if c["slug"] == "bookshelf-speakers"]
     assert len(bookshelf) > 0
-    assert bookshelf[0]["level"] == 2
-    assert bookshelf[0]["parent_slug"] == "speakers"
+    assert bookshelf[0]["level"] == 3
+    assert bookshelf[0]["parent_path"] == "/en/home-audio/speakers/"
 
     amplifiers = [c for c in result if c["slug"] == "amplifiers"]
     assert len(amplifiers) > 0
-    assert amplifiers[0]["level"] == 1
-    assert amplifiers[0]["parent_slug"] == "home-audio"
+    assert amplifiers[0]["level"] == 2
+    assert amplifiers[0]["parent_path"] == "/en/home-audio/"
 
 
 def test_brands_not_in_categories(sample_sitemap_html):
@@ -52,8 +52,14 @@ def test_extract_slug():
     """Test URL slug extraction."""
     parser = SitemapParser.__new__(SitemapParser)
 
-    assert parser._extract_slug("https://www.soundimports.eu/en/home-audio/speakers/") == "speakers"
-    assert parser._extract_slug("https://www.soundimports.eu/en/home-audio/") == "home-audio"
+    assert (
+        parser._extract_slug("https://www.soundimports.eu/en/home-audio/speakers/")
+        == "speakers"
+    )
+    assert (
+        parser._extract_slug("https://www.soundimports.eu/en/home-audio/")
+        == "home-audio"
+    )
     assert parser._extract_slug("/en/brands/yamaha/") == "yamaha"
 
 

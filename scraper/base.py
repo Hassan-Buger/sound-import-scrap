@@ -18,8 +18,10 @@ class BaseSupplierScraper(ABC):
             - name: str
             - slug: str
             - url: str
+            - canonical_path: str   (unique category identity, e.g. /en/a/b/)
+            - parent_path: Optional[str]
             - level: int
-            - parent_slug: Optional[str]
+            - source_count: int     (product count shown on the source site)
         """
         ...
 

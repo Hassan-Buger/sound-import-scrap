@@ -12,9 +12,11 @@ from app.models import *  # noqa: F401, F403 - ensure models are loaded
 from app.config import settings
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.sync_database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
-if config.config_file_name is not None:
+if config.config_file_name is not None and config.attributes.get(
+    "configure_logger", True
+):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
@@ -40,7 +42,9 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.sync_database_url
+    # async_engine_from_config requires an async driver (asyncpg/aiosqlite).
+    # Converting this to plain postgresql:// selects psycopg2 and crashes.
+    configuration["sqlalchemy.url"] = settings.database_url
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

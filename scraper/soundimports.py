@@ -21,9 +21,10 @@ class SoundImportsScraper(BaseSupplierScraper):
     def __init__(self, client: Optional[HttpClient] = None):
         self._client = client or HttpClient(
             base_url=settings.base_url,
-            concurrency=settings.concurrency,
+            concurrency=settings.product_concurrency,
             request_delay=settings.request_delay,
             max_retries=settings.max_retries,
+            timeout=settings.request_timeout,
         )
         self.sitemap_parser = SitemapParser(self._client)
         self.category_scraper = CategoryScraper(self._client)
@@ -43,7 +44,9 @@ class SoundImportsScraper(BaseSupplierScraper):
     async def get_product_list(
         self, category_url: str, page: int = 1, limit: int = 100
     ) -> Dict[str, Any]:
-        return await self.category_scraper.fetch_page(category_url, page=page, limit=limit)
+        return await self.category_scraper.fetch_page(
+            category_url, page=page, limit=limit
+        )
 
     def extract_product_summary(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         """Extract minimal product summary from a category-list product entry."""
@@ -70,5 +73,9 @@ class SoundImportsScraper(BaseSupplierScraper):
     async def get_product_detail(self, product_url: str) -> Dict[str, Any]:
         return await self.product_scraper.fetch_detail(product_url)
 
-    def extract_product_detail(self, raw: Dict[str, Any], category_slug: str = None) -> Dict[str, Any]:
-        return self.product_scraper.extract_product_data(raw, category_slug=category_slug)
+    def extract_product_detail(
+        self, raw: Dict[str, Any], category_slug: str = None
+    ) -> Dict[str, Any]:
+        return self.product_scraper.extract_product_data(
+            raw, category_slug=category_slug
+        )

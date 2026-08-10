@@ -31,6 +31,12 @@ def test_extract_product_data(sample_product_detail_json):
     assert raw["sku"] == "HI-VI-OS-10"
 
     assert result["category_ids"] == "bookshelf-speakers"
+    assert {
+        row["canonical_path"] for row in result["product_categories"]
+    } >= {
+        "/en/home-audio/speakers/bookshelf-speakers/",
+        "/en/bookshelf-speakers/",
+    }
 
 
 def test_extract_product_data_minimal():
@@ -61,6 +67,21 @@ def test_extract_product_data_no_sku():
     data = {"id": 5000, "title": "No SKU Product"}
     result = scraper.extract_product_data(data)
     assert result["sku"] == "5000"
+
+
+def test_extract_product_data_without_stable_identity_fails():
+    scraper = ProductScraper.__new__(ProductScraper)
+    with pytest.raises(ValueError, match="stable product ID"):
+        scraper.extract_product_data({"title": "No stable identity"})
+
+
+def test_zero_price_and_stock_are_preserved():
+    scraper = ProductScraper.__new__(ProductScraper)
+    result = scraper.extract_product_data(
+        {"sku": "ZERO-1", "price": 0, "stock": {"quantity": 0}}
+    )
+    assert result["price"] == 0.0
+    assert result["stock"] == 0
 
 
 def test_extract_product_data_images_dedup():

@@ -1,272 +1,708 @@
 import asyncio
 import json
 import logging
-import os
-from datetime import datetime
+import random
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Callable, Awaitable
-
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Dict, Any, Optional, Set
 
 from app.config import settings
 from app.database import async_session_factory
 from app import crud
-from app.models import Product, Category
-from scraper.client import HttpClient
-from scraper.sitemap import SitemapParser
+from app.models import Category
+from scraper.client import (
+    HttpClient,
+    HttpClientError,
+    RetryableHttpError,
+    NonRetryableHttpError,
+)
 from scraper.category import CategoryScraper
-from scraper.product import ProductScraper
 from scraper.base import BaseSupplierScraper
 from app.schemas import ProductDetail, CategoryOut
+from app.timeutils import utc_now
 
 logger = logging.getLogger("scraper.pipeline")
 
 
+class CategoryIncompleteError(RetryableHttpError):
+    """A category response was reachable but incomplete or inconsistent."""
+
+    def __init__(self, message: str, *, product_failures: int = 0):
+        super().__init__(message)
+        self.product_failures = product_failures
+
+
+def decide_job_status(
+    failed: int,
+    succeeded: int,
+    skipped: int = 0,
+    products_failed: int = 0,
+    discrepancies: int = 0,
+) -> str:
+    """Derive a truthful terminal state from all completeness signals."""
+    incomplete = failed + skipped + products_failed + discrepancies
+    if incomplete == 0:
+        return "SUCCESS"
+    if succeeded == 0 and (failed or skipped):
+        return "FAILED"
+    return "PARTIAL_SUCCESS"
+
+
 class ScrapePipeline:
-    """Orchestrates the full scraping workflow with resume support."""
+    """Orchestrates the full scraping workflow with resume, retry and
+    per-category job state persisted in the database so that Railway
+    restarts never lose progress."""
 
     def __init__(
         self,
         supplier: BaseSupplierScraper,
         client: Optional[HttpClient] = None,
         full: bool = True,
+        category_filter: Optional[Set[str]] = None,
     ):
         self.supplier = supplier
-        self.client = client or HttpClient(concurrency=supplier.concurrency)
+        self.client = client or HttpClient(
+            concurrency=settings.product_concurrency,
+            request_delay=settings.request_delay,
+            max_retries=settings.max_retries,
+            timeout=settings.request_timeout,
+        )
         self.full = full
-        self._stats = {
+        self.category_filter = {x.strip() for x in (category_filter or set()) if x.strip()}
+        self.category_scraper = CategoryScraper(self.client)
+        self._category_sem = asyncio.Semaphore(max(1, settings.category_concurrency))
+        self._db_sem = asyncio.Semaphore(20)
+        self._product_locks: Dict[str, asyncio.Lock] = {}
+        self._product_cache: Dict[str, int] = {}
+        self._seen_product_ids: Set[int] = set()
+        self._stats: Dict[str, Any] = {
+            "job_id": None,
             "categories_discovered": 0,
             "categories_completed": 0,
+            "categories_succeeded": 0,
+            "categories_failed": 0,
+            "categories_skipped": 0,
             "products_total": 0,
             "products_new": 0,
             "products_updated": 0,
             "products_failed": 0,
             "pages_fetched": 0,
+            "relationships_created": 0,
+            "relationships_existing": 0,
+            "relationships_removed": 0,
+            "category_discrepancies": 0,
+            "http_requests": 0,
+            "http_retries": 0,
+            "http_failures": 0,
         }
 
-    async def run(self) -> Dict[str, Any]:
-        """Execute the full scrape pipeline."""
-        start_time = datetime.utcnow()
-        logger.info("Starting %s scrape for %s", "full" if self.full else "incremental", self.supplier.name)
+    # ------------------------------------------------------------------ run
 
-        job_id = None
-        async with async_session_factory() as db:
-            job_id = await crud.create_scrape_job(db, "full" if self.full else "incremental")
+    async def run(
+        self,
+        too_many_failures_ratio: float = 0.05,
+        job_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        start_time = utc_now()
+        logger.info(
+            "Starting %s scrape for %s",
+            "full" if self.full else "incremental",
+            self.supplier.name,
+        )
 
-        try:
-            categories = await self.supplier.discover_categories()
-            self._stats["categories_discovered"] = len(categories)
-            logger.info("Discovered %d categories", len(categories))
-
-            await self._sync_categories(categories)
-
-            sem = asyncio.Semaphore(self.supplier.concurrency)
-
-            async def process_category(cat: Dict[str, Any]):
-                async with sem:
-                    await self._scrape_category(job_id, cat)
-
-            tasks = [process_category(cat) for cat in categories]
-            await asyncio.gather(*tasks, return_exceptions=True)
-
-            elapsed = (datetime.utcnow() - start_time).total_seconds()
-            self._stats["elapsed_seconds"] = elapsed
-
+        if job_id is not None:
+            self._stats["job_id"] = job_id
             async with async_session_factory() as db:
                 await crud.update_scrape_job(
-                    db, job_id,
-                    status="completed",
-                    finished_at=datetime.utcnow(),
-                    total_categories=self._stats["categories_discovered"],
-                    completed_categories=self._stats["categories_completed"],
-                    total_products=self._stats["products_total"],
-                    new_products=self._stats["products_new"],
-                    updated_products=self._stats["products_updated"],
-                    failed_products=self._stats["products_failed"],
+                    db,
+                    job_id,
+                    status="running",
+                    job_status="RUNNING",
+                    finished_at=None,
+                    heartbeat_at=utc_now(),
                 )
+        else:
+            job_id = await self._create_or_resume_job()
+
+        heartbeat_stop = asyncio.Event()
+        heartbeat_task = asyncio.create_task(
+            self._heartbeat_job(job_id, heartbeat_stop)
+        )
+        try:
+            source_categories = await self.supplier.discover_categories()
+            if not source_categories:
+                raise CategoryIncompleteError(
+                    "Sitemap discovery returned zero categories; refusing false success"
+                )
+
+            categories = source_categories
+            if self.category_filter:
+                categories = [
+                    category
+                    for category in source_categories
+                    if any(
+                        token in category["canonical_path"]
+                        or token == category["slug"]
+                        for token in self.category_filter
+                    )
+                ]
+                if not categories:
+                    raise ValueError(
+                        "No categories matched filter: "
+                        + ", ".join(sorted(self.category_filter))
+                    )
+
+            self._stats["categories_discovered"] = len(categories)
+            logger.info(
+                "Discovered %d source categories; %d selected for this job",
+                len(source_categories),
+                len(categories),
+            )
+
+            # Persist canonical-path-derived DB tree.
+            path_to_cat = await self._sync_categories(source_categories)
+
+            # Safe reconciliation: a category is only deactivated when the
+            # source sitemap was loaded successfully and it is genuinely absent.
+            active_paths = {c["canonical_path"] for c in source_categories}
+            async with async_session_factory() as db:
+                deactivated = await crud.deactivate_categories_not_in(
+                    db,
+                    active_paths,
+                    confirmation_threshold=settings.category_deactivation_threshold,
+                )
+                if deactivated:
+                    logger.info(
+                        "Deactivated %d categories absent from the source tree",
+                        deactivated,
+                    )
+
+            pending_categories = await self._prepare_job_progress(
+                job_id, categories, path_to_cat
+            )
+
+            tasks = [
+                self._run_category_limited(job_id, category)
+                for category in pending_categories
+            ]
+            task_results = await asyncio.gather(*tasks, return_exceptions=True)
+            for category, result in zip(pending_categories, task_results):
+                if isinstance(result, BaseException):
+                    self._stats["categories_failed"] += 1
+                    logger.exception(
+                        "Unhandled category task failure for %s",
+                        category["canonical_path"],
+                        exc_info=(type(result), result, result.__traceback__),
+                    )
+
+            async with async_session_factory() as db:
+                await crud.recompute_category_counts(db, family=True)
+            await self._detect_count_discrepancies(
+                {category["canonical_path"] for category in categories}
+            )
+
+            elapsed = (utc_now() - start_time).total_seconds()
+            self._stats["elapsed_seconds"] = elapsed
+            await self._finalize_job(job_id)
 
             await self._export_json()
 
             logger.info(
-                "Scrape finished in %.1fs: %d categories, %d products "
-                "(%d new, %d updated, %d failed)",
+                "Scrape finished in %.1fs: %d categories (%d succeeded, %d failed, %d skipped), "
+                "%d products (%d new, %d updated, %d failed). Job status: %s",
                 elapsed,
-                self._stats["categories_completed"],
+                self._stats["categories_discovered"],
+                self._stats["categories_succeeded"],
+                self._stats["categories_failed"],
+                self._stats["categories_skipped"],
                 self._stats["products_total"],
                 self._stats["products_new"],
                 self._stats["products_updated"],
                 self._stats["products_failed"],
+                self._stats.get("job_status"),
             )
 
         except Exception as e:
             logger.exception("Scrape failed: %s", e)
+            self._stats["job_status"] = "FAILED"
             async with async_session_factory() as db:
                 await crud.update_scrape_job(
-                    db, job_id,
+                    db,
+                    job_id,
                     status="failed",
-                    finished_at=datetime.utcnow(),
-                    errors=str(e),
+                    job_status="FAILED",
+                    finished_at=utc_now(),
+                    errors=f"{type(e).__name__}: {e}",
                 )
             raise
+        finally:
+            heartbeat_stop.set()
+            await heartbeat_task
 
         return self._stats
 
-    async def _export_json(self):
-        """Export scraped data to JSON files for debugging."""
-        export_dir = Path(settings.json_export_dir)
-        export_dir.mkdir(parents=True, exist_ok=True)
+    async def _heartbeat_job(self, job_id: int, stop: asyncio.Event) -> None:
+        """Renew the database lease while a scrape process is alive."""
+        interval = max(5.0, min(30.0, settings.job_stale_after / 3))
+        while not stop.is_set():
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=interval)
+                return
+            except asyncio.TimeoutError:
+                try:
+                    async with async_session_factory() as db:
+                        await crud.update_scrape_job(
+                            db, job_id, heartbeat_at=utc_now()
+                        )
+                except Exception as exc:
+                    # The scrape itself may recover even if one heartbeat write
+                    # fails; the next renewal will retry.
+                    logger.warning("Job #%d heartbeat failed: %s", job_id, exc)
 
+    async def _create_or_resume_job(self) -> int:
+        """Resume an interrupted same-type job, including full jobs."""
+        job_type = "full" if self.full else "incremental"
         async with async_session_factory() as db:
-            categories = await crud.get_all_categories(db)
-            cat_data = [
-                CategoryOut.model_validate(c).model_dump() for c in categories
-            ]
-            with open(export_dir / "categories.json", "w", encoding="utf-8") as f:
-                json.dump(cat_data, f, ensure_ascii=False, indent=2)
-            logger.info("Exported %d categories to %s", len(cat_data), export_dir / "categories.json")
+            job_id, claim_state = await crud.create_or_resume_scrape_job(
+                db, job_type, settings.job_stale_after
+            )
+            if claim_state == "already_running":
+                raise RuntimeError(
+                    f"A {job_type} scrape is already running as job #{job_id}"
+                )
+            if claim_state == "resumed":
+                logger.info("Resuming interrupted job #%d", job_id)
+            self._stats["job_id"] = job_id
+            return job_id
 
-            brands_raw = await crud.get_brands(db)
-            brand_data = [{"name": r["brand"], "product_count": r["product_count"]} for r in brands_raw]
-            with open(export_dir / "brands.json", "w", encoding="utf-8") as f:
-                json.dump(brand_data, f, ensure_ascii=False, indent=2)
-            logger.info("Exported %d brands to %s", len(brand_data), export_dir / "brands.json")
-
-            products = await crud.export_products(db)
-            products_dir = export_dir / "products"
-            products_dir.mkdir(parents=True, exist_ok=True)
-            for p in products:
-                detail = ProductDetail.model_validate(p)
-                sku = p.sku.replace("/", "_").replace("\\", "_")
-                with open(products_dir / f"{sku}.json", "w", encoding="utf-8") as f:
-                    json.dump(detail.model_dump(), f, ensure_ascii=False, indent=2)
-            logger.info("Exported %d products to %s", len(products), products_dir)
-
-    async def _sync_categories(self, categories: List[Dict[str, Any]]):
-        """Upsert all discovered categories into the database."""
-        slug_to_id: Dict[str, int] = {}
-
+    async def _prepare_job_progress(
+        self,
+        job_id: int,
+        categories: List[Dict[str, Any]],
+        path_to_cat: Dict[str, Category],
+    ) -> List[Dict[str, Any]]:
+        """Persist discovery and return only categories not already completed."""
         async with async_session_factory() as db:
+            for category in categories:
+                await crud.mark_category_discovered(
+                    db, job_id, path_to_cat[category["canonical_path"]]
+                )
+            await db.commit()
+            progress_rows = await crud.get_job_progress(db, job_id)
+
+        completed_paths = {
+            row.canonical_path for row in progress_rows if row.completed
+        }
+        if completed_paths:
+            self._stats["categories_completed"] += len(completed_paths)
+            self._stats["categories_succeeded"] += len(completed_paths)
+            logger.info(
+                "Resume checkpoint: %d categories already completed",
+                len(completed_paths),
+            )
+        return [
+            category
+            for category in categories
+            if category["canonical_path"] not in completed_paths
+        ]
+
+    async def _run_category_limited(
+        self, job_id: int, category: Dict[str, Any]
+    ):
+        async with self._category_sem:
+            return await self._scrape_category_with_retries(job_id, category)
+
+    # ------------------------------------------------------------- categories
+
+    async def _sync_categories(
+        self, categories: List[Dict[str, Any]]
+    ) -> Dict[str, Category]:
+        """Upsert all discovered categories into the DB keyed by canonical path,
+        resolving parents via canonical parent paths."""
+        async with async_session_factory() as db:
+            path_to_cat: Dict[str, Category] = {}
             for cat in categories:
-                parent_id = None
-                parent_slug = cat.get("parent_slug")
-                if parent_slug and parent_slug in slug_to_id:
-                    parent_id = slug_to_id[parent_slug]
-
-                db_cat = await crud.upsert_category(
+                db_cat = await crud.upsert_category_with_parent(
                     db,
                     name=cat["name"],
                     slug=cat["slug"],
+                    canonical_path=cat["canonical_path"],
                     url=cat["url"],
                     level=cat.get("level", 0),
-                    parent_id=parent_id,
+                    parent_path_ref=cat.get("parent_path"),
+                    source_count=cat.get("source_count", 0),
                 )
-                slug_to_id[cat["slug"]] = db_cat.id
+                path_to_cat[cat["canonical_path"]] = db_cat
+            await db.commit()
+        return path_to_cat
 
-    async def _scrape_category(self, job_id: int, category: Dict[str, Any]):
+    async def _scrape_category_with_retries(
+        self, job_id: int, category: Dict[str, Any]
+    ):
+        """Scrape a single category retrying on transient failures."""
+        max_attempts = max(1, settings.category_max_retries)
+        attempt = 0
+        delay = 1.0
+
+        while True:
+            attempt += 1
+            try:
+                return await self._scrape_category(job_id, category, attempt=attempt)
+            except NonRetryableHttpError as exc:
+                self._stats["categories_failed"] += 1
+                logger.error(
+                    "Category aborted on permanent HTTP error: %s - %s",
+                    category["name"],
+                    exc,
+                )
+                async with async_session_factory() as db:
+                    await crud.update_category_progress(
+                        db,
+                        job_id,
+                        category["canonical_path"],
+                        status="failed",
+                        attempt_count=attempt,
+                        last_error=str(exc),
+                        last_error_class=type(exc).__name__,
+                        completed_at=utc_now(),
+                        completed=False,
+                    )
+                    await crud.update_category_scrape_state(
+                        db,
+                        category["canonical_path"],
+                        scrape_status="failed",
+                        attempt_count=attempt,
+                        last_error=str(exc),
+                    )
+                return
+            except (
+                HttpClientError,
+                asyncio.TimeoutError,
+                ConnectionError,
+                OSError,
+            ) as exc:
+                if attempt >= max_attempts:
+                    self._stats["categories_failed"] += 1
+                    self._stats["products_failed"] += getattr(
+                        exc, "product_failures", 0
+                    )
+                    logger.error(
+                        "Category failed after %d attempts: %s - %s",
+                        attempt,
+                        category["name"],
+                        exc,
+                    )
+                    async with async_session_factory() as db:
+                        await crud.update_category_progress(
+                            db,
+                            job_id,
+                            category["canonical_path"],
+                            status="failed",
+                            attempt_count=attempt,
+                            last_error=str(exc),
+                            last_error_class=type(exc).__name__,
+                            completed_at=utc_now(),
+                            completed=False,
+                        )
+                        await crud.update_category_scrape_state(
+                            db,
+                            category["canonical_path"],
+                            scrape_status="failed",
+                            attempt_count=attempt,
+                            last_error=str(exc),
+                        )
+                    return
+                # exponential backoff + jitter
+                wait = delay * (2 ** (attempt - 1)) + random.uniform(0, 0.5)
+                logger.warning(
+                    "Category %s attempt %d/%d failed (%s); retrying in %.1fs",
+                    category["name"],
+                    attempt,
+                    max_attempts,
+                    exc,
+                    wait,
+                )
+                async with async_session_factory() as db:
+                    await crud.update_category_progress(
+                        db,
+                        job_id,
+                        category["canonical_path"],
+                        status="retrying",
+                        attempt_count=attempt,
+                        last_error=str(exc),
+                        last_error_class=type(exc).__name__,
+                    )
+                    await crud.update_category_scrape_state(
+                        db,
+                        category["canonical_path"],
+                        scrape_status="retrying",
+                        attempt_count=attempt,
+                        last_error=str(exc),
+                    )
+                await asyncio.sleep(wait)
+            except Exception as exc:  # non-retryable
+                self._stats["categories_failed"] += 1
+                logger.exception(
+                    "Category aborted (non-retryable): %s", category["name"]
+                )
+                async with async_session_factory() as db:
+                    await crud.update_category_progress(
+                        db,
+                        job_id,
+                        category["canonical_path"],
+                        status="failed",
+                        attempt_count=attempt,
+                        last_error=f"{type(exc).__name__}: {exc}",
+                        last_error_class=type(exc).__name__,
+                        completed_at=utc_now(),
+                        completed=False,
+                    )
+                    await crud.update_category_scrape_state(
+                        db,
+                        category["canonical_path"],
+                        scrape_status="failed",
+                        attempt_count=attempt,
+                        last_error=f"{type(exc).__name__}: {exc}",
+                    )
+                return
+
+    async def _scrape_category(
+        self, job_id: int, category: Dict[str, Any], attempt: int = 1
+    ):
         """Scrape all products from a single category."""
         cat_url = category["url"]
+        cat_path = category["canonical_path"]
         cat_name = category["name"]
-        logger.info("Category started: %s (%s)", cat_name, cat_url)
+        logger.info("Category started: %s (%s) attempt=%d", cat_name, cat_url, attempt)
+
+        async with async_session_factory() as db:
+            await crud.update_category_progress(
+                db,
+                job_id,
+                cat_path,
+                status="running",
+                attempt_count=attempt,
+                started_at=utc_now(),
+            )
+
+        page = 1
+        limit = 100
+        products_scraped = 0
+        products_failed = 0
+        pages_processed = 0
+        source_count = 0
+        list_total = 0
+        total_pages = 0
+        listed_keys: Set[str] = set()
+        previous_page_keys: Set[str] = set()
+        successful_product_ids: Set[int] = set()
+        product_failure_messages: List[str] = []
 
         try:
-            async with async_session_factory() as db:
-                progress = await crud.get_scrape_progress(db, job_id, cat_url)
-                start_page = 1
-                if progress and not self.full:
-                    start_page = progress.page
-                    if progress.completed:
-                        logger.info("Category %s already completed, skipping", cat_name)
-                        return
-
-            # Use category slug from the category dict for product categorization
-            category_slug = category.get("slug")
-
-            page = start_page
-            limit = 100
-            total_products_in_category = 0
-
             while True:
-                data = await self.supplier.get_product_list(cat_url, page=page, limit=limit)
+                data = await self.supplier.get_product_list(
+                    cat_url, page=page, limit=limit
+                )
                 self._stats["pages_fetched"] += 1
 
+                meta = self.category_scraper.get_metadata(data)
+                if page == 1:
+                    source_count = category.get("source_count", 0) or meta["total"]
+                    list_total = meta["total"]
+                    total_pages = self.category_scraper.get_total_pages(data)
+
                 product_list = self._extract_products_from_list(data)
-                if not product_list:
-                    logger.debug("No products on page %d for %s", page, cat_name)
-                    break
+                page_keys = {self._product_list_key(item) for item in product_list}
+                page_keys.discard("")
+                if page > 1 and page_keys and page_keys == previous_page_keys:
+                    raise CategoryIncompleteError(
+                        f"Pagination repeated page {page} for {cat_path}"
+                    )
+                if not product_list and total_pages and page < total_pages:
+                    raise CategoryIncompleteError(
+                        f"Pagination returned an empty page {page}/{total_pages} for {cat_path}"
+                    )
 
-                await self._process_product_list(product_list, category_slug=category_slug)
+                new_products = []
+                for item in product_list:
+                    key = self._product_list_key(item)
+                    if key and key not in listed_keys:
+                        new_products.append(item)
+                        listed_keys.add(key)
+                previous_page_keys = page_keys
 
-                total_pages = self._get_total_pages(data)
+                if new_products:
+                    found, failed, product_ids, failures = await self._process_product_list(
+                        new_products,
+                        category_path=cat_path,
+                    )
+                    products_scraped += found
+                    products_failed += failed
+                    successful_product_ids.update(product_ids)
+                    product_failure_messages.extend(failures)
+                pages_processed += 1
+
+                total_pages = max(
+                    total_pages,
+                    self.category_scraper.get_total_pages(data),
+                )
                 logger.debug(
-                    "Category %s page %d/%d: %d products",
-                    cat_name, page, total_pages, len(product_list),
+                    "Category %s page %d/%d: %d products (source total %d)",
+                    cat_name,
+                    page,
+                    total_pages,
+                    len(product_list),
+                    source_count,
                 )
 
                 async with async_session_factory() as db:
-                    await crud.upsert_scrape_progress(
-                        db, job_id, cat_url,
+                    await crud.update_category_progress(
+                        db,
+                        job_id,
+                        cat_path,
                         page=page,
                         total_pages=total_pages,
-                        total_products=total_products_in_category + len(product_list),
+                        total_products=list_total,
+                        source_count=source_count,
+                        products_scraped=products_scraped,
+                        pages_processed=pages_processed,
                     )
 
-                total_products_in_category += len(product_list)
-
-                if page >= total_pages:
+                if not product_list or page >= total_pages or total_pages == 0:
                     break
                 page += 1
 
-            self._stats["categories_completed"] += 1
+            if list_total and len(listed_keys) != list_total:
+                raise CategoryIncompleteError(
+                    f"Product-list count mismatch for {cat_path}: "
+                    f"api_total={list_total}, unique_listed={len(listed_keys)}"
+                )
+            if products_failed:
+                samples = "; ".join(product_failure_messages[:5])
+                raise CategoryIncompleteError(
+                    f"{products_failed} product detail(s) failed for {cat_path}: {samples}",
+                    product_failures=products_failed,
+                )
 
             async with async_session_factory() as db:
-                await crud.upsert_scrape_progress(
-                    db, job_id, cat_url,
+                removed = await crud.replace_category_products(
+                    db, cat_path, successful_product_ids
+                )
+                self._stats["relationships_removed"] += removed
+
+            self._stats["categories_completed"] += 1
+            self._stats["categories_succeeded"] += 1
+
+            async with async_session_factory() as db:
+                await crud.update_category_progress(
+                    db,
+                    job_id,
+                    cat_path,
+                    status="completed",
                     completed=True,
-                    total_products=total_products_in_category,
+                    completed_at=utc_now(),
+                    products_scraped=products_scraped,
+                    pages_processed=pages_processed,
+                    total_products=list_total,
+                    source_count=source_count,
+                    last_error=None,
+                )
+                await crud.update_category_scrape_state(
+                    db,
+                    cat_path,
+                    scrape_status="completed",
+                    attempt_count=attempt,
+                    last_error=None,
+                    last_scraped_at=utc_now(),
                 )
 
             logger.info(
-                "Category finished: %s (%d products)",
-                cat_name, total_products_in_category,
+                "Category finished: %s (source=%d, scraped=%d, failed=%d)",
+                cat_name,
+                source_count,
+                products_scraped,
+                products_failed,
             )
 
-        except Exception as e:
-            self._stats["products_failed"] += 1
-            logger.error("Category failed: %s - %s", cat_name, e)
+        except Exception as exc:
             async with async_session_factory() as db:
-                await crud.upsert_scrape_progress(
-                    db, job_id, cat_url,
-                    errors=str(e),
+                await crud.update_category_progress(
+                    db,
+                    job_id,
+                    cat_path,
+                    status="retrying"
+                    if attempt < max(1, settings.category_max_retries)
+                    else "failed",
+                    last_error=str(exc),
+                    last_error_class=type(exc).__name__,
                 )
+            raise
+
+    # ------------------------------------------------------------- products
 
     async def _process_product_list(
         self,
         product_list: List[Dict[str, Any]],
-        category_slug: Optional[str] = None,
-    ):
+        category_path: Optional[str] = None,
+    ) -> tuple[int, int, Set[int], List[str]]:
         """Fetch details for all products in a list concurrently."""
-        http_sem = asyncio.Semaphore(self.supplier.concurrency)
-        db_sem = asyncio.Semaphore(20)
+        found = 0
+        failed = 0
+        product_ids: Set[int] = set()
+        failures: List[str] = []
+        lock = asyncio.Lock()
 
-        async def process_one(product: Dict[str, Any]):
-            async with http_sem:
-                try:
-                    product_summary = self.supplier.extract_product_summary(product)
+        async def process_one(raw_product: Dict[str, Any]):
+            nonlocal found, failed
+            try:
+                product_summary = self.supplier.extract_product_summary(raw_product)
+                product_url = product_summary.get("url", "")
+                if not product_url:
+                    raise ValueError("Product list entry has no detail URL")
+                lock_key = str(
+                    product_summary.get("sku")
+                    or product_summary.get("product_id")
+                    or product_url
+                )
+                product_lock = self._product_locks.setdefault(
+                    lock_key, asyncio.Lock()
+                )
+
+                async with product_lock:
+                    cached_product_id = self._product_cache.get(lock_key)
+                    if cached_product_id is not None:
+                        async with self._db_sem:
+                            async with async_session_factory() as db:
+                                rel_created, rel_existing = (
+                                    await crud.set_product_categories(
+                                        db,
+                                        cached_product_id,
+                                        [category_path] if category_path else [],
+                                    )
+                                )
+                                await db.commit()
+                        self._stats["relationships_created"] += rel_created
+                        self._stats["relationships_existing"] += rel_existing
+                        async with lock:
+                            found += 1
+                            product_ids.add(cached_product_id)
+                        return
+
                     detail_data = await self.supplier.get_product_detail(
-                        product_summary.get("url", "")
+                        product_url
                     )
-                    product_data = self.supplier.extract_product_detail(detail_data, category_slug=category_slug)
+                    product_data = self.supplier.extract_product_detail(
+                        detail_data, category_slug=category_path
+                    )
 
                     existing_ids = product_data.get("category_ids") or ""
-                    if category_slug and category_slug not in existing_ids:
-                        if existing_ids:
-                            existing_ids = existing_ids + "," + category_slug
-                        else:
-                            existing_ids = category_slug
 
-                    async with db_sem:
+                    async with self._db_sem:
                         async with async_session_factory() as db:
-                            await crud.upsert_product(
+                            (
+                                db_product,
+                                is_new,
+                                (rel_created, rel_existing),
+                            ) = await crud.upsert_product(
                                 db,
                                 product_id=product_data["product_id"],
                                 sku=product_data["sku"],
@@ -286,53 +722,174 @@ class ScrapePipeline:
                                 raw_json=product_data.get("raw_json"),
                                 images=product_data.get("images", []),
                                 attributes=product_data.get("attributes", []),
+                                product_categories_paths=[
+                                    pc["canonical_path"]
+                                    for pc in product_data.get("product_categories", [])
+                                ],
                             )
+                            self._stats["relationships_created"] += rel_created
+                            self._stats["relationships_existing"] += rel_existing
+                            self._product_cache[lock_key] = db_product.id
 
-                    self._stats["products_total"] += 1
-                    if product_data.get("is_new", True):
-                        self._stats["products_new"] += 1
-                    else:
-                        self._stats["products_updated"] += 1
+                    async with lock:
+                        found += 1
+                        product_ids.add(db_product.id)
+                        if db_product.id not in self._seen_product_ids:
+                            self._seen_product_ids.add(db_product.id)
+                            self._stats["products_total"] += 1
+                            if is_new:
+                                self._stats["products_new"] += 1
+                            else:
+                                self._stats["products_updated"] += 1
 
-                except Exception as e:
-                    self._stats["products_failed"] += 1
-                    sku = product.get("code", product.get("sku", "unknown"))
-                    logger.error("Product failed %s: %s", sku, e)
+            except Exception as exc:
+                sku = raw_product.get(
+                    "code", raw_product.get("sku", raw_product.get("id", "unknown"))
+                )
+                message = f"{sku}: {type(exc).__name__}: {exc}"
+                async with lock:
+                    failed += 1
+                    failures.append(message)
+                logger.error("Product failed %s", message)
 
         tasks = [process_one(p) for p in product_list]
         await asyncio.gather(*tasks, return_exceptions=True)
+        return found, failed, product_ids, failures
+
+    @staticmethod
+    def _product_list_key(product: Dict[str, Any]) -> str:
+        for key in ("id", "code", "sku", "url", "link"):
+            value = product.get(key)
+            if value not in (None, ""):
+                return f"{key}:{value}"
+        return ""
 
     def _extract_products_from_list(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Extract product list from API response.
+        return self.category_scraper.extract_products(data)
 
-        Handles both:
-          - {collection: {products: {id: {...}, id: {...}}}}
-          - {products: [{...}, {...}]}
-          - {products: {id: {...}, id: {...}}}
+    # ------------------------------------------------------------- counts
+
+    async def _detect_count_discrepancies(
+        self, selected_paths: Optional[Set[str]] = None
+    ):
+        """Compare DB-derived counts against the source's own counts.
+
+        Reads fresh ``product_count`` from the DB (values were just recomputed
+        by ``recompute_category_counts``) rather than the in-memory rows from
+        ``_sync_categories``, which are stale at this point.
         """
-        collection = data.get("collection", data)
-        products = collection.get("products", {})
+        discrepancies = 0
+        async with async_session_factory() as db:
+            cats = await crud.get_all_categories(db)
+            for cat in cats:
+                if selected_paths is not None and cat.canonical_path not in selected_paths:
+                    continue
+                db_count = cat.product_count
+                source_count = cat.source_product_count
+                if db_count != source_count and source_count:
+                    discrepancies += 1
+                    logger.warning(
+                        "Count discrepancy: %s source=%d db=%d",
+                        cat.canonical_path,
+                        source_count,
+                        db_count,
+                    )
+        self._stats["category_discrepancies"] = discrepancies
 
-        if isinstance(products, list):
-            return products
-        if isinstance(products, dict):
-            return list(products.values())
+    async def _finalize_job(self, job_id: int):
+        failed = self._stats["categories_failed"]
+        succeeded = self._stats["categories_succeeded"]
+        skipped = self._stats["categories_skipped"]
+        client = getattr(self.supplier, "_client", self.client)
+        http_stats = getattr(client, "stats", {}) or {}
+        self._stats["http_requests"] = http_stats.get("requests", 0)
+        self._stats["http_retries"] = http_stats.get("retries", 0)
+        self._stats["http_failures"] = http_stats.get("failures", 0)
+        job_status = decide_job_status(
+            failed,
+            succeeded,
+            skipped,
+            products_failed=self._stats["products_failed"],
+            discrepancies=self._stats["category_discrepancies"],
+        )
 
-        products = data.get("items") or data.get("data", [])
-        if isinstance(products, list):
-            return products
-        if isinstance(products, dict):
-            return list(products.values())
+        summary = {
+            "categories_discovered": self._stats["categories_discovered"],
+            "categories_succeeded": succeeded,
+            "categories_failed": failed,
+            "categories_skipped": self._stats["categories_skipped"],
+            "products_total": self._stats["products_total"],
+            "products_new": self._stats["products_new"],
+            "products_updated": self._stats["products_updated"],
+            "products_failed": self._stats["products_failed"],
+            "relationships_created": self._stats["relationships_created"],
+            "relationships_existing": self._stats["relationships_existing"],
+            "relationships_removed": self._stats["relationships_removed"],
+            "category_discrepancies": self._stats["category_discrepancies"],
+            "http_requests": self._stats["http_requests"],
+            "http_retries": self._stats["http_retries"],
+            "http_failures": self._stats["http_failures"],
+            "elapsed_seconds": self._stats.get("elapsed_seconds", 0),
+        }
+        self._stats["job_status"] = job_status
 
-        return []
+        async with async_session_factory() as db:
+            await crud.update_scrape_job(
+                db,
+                job_id,
+                status="completed",
+                job_status=job_status,
+                finished_at=utc_now(),
+                total_categories=self._stats["categories_discovered"],
+                completed_categories=succeeded,
+                categories_succeeded=succeeded,
+                categories_failed=failed,
+                categories_skipped=self._stats["categories_skipped"],
+                total_products=self._stats["products_total"],
+                new_products=self._stats["products_new"],
+                updated_products=self._stats["products_updated"],
+                failed_products=self._stats["products_failed"],
+                relationships_created=self._stats["relationships_created"],
+                relationships_existing=self._stats["relationships_existing"],
+                category_discrepancies=self._stats["category_discrepancies"],
+                summary=json.dumps(summary, default=str),
+            )
 
-    def _get_total_pages(self, data: Dict[str, Any]) -> int:
-        collection = data.get("collection", data)
-        pages = collection.get("pages", 0)
-        if pages:
-            return pages
-        total = collection.get("count", 0) or data.get("total", 0) or data.get("count", 0)
-        limit = collection.get("limit", 100) or data.get("limit", 100)
-        if total == 0:
-            return 0
-        return max(1, (total + limit - 1) // limit)
+    # ------------------------------------------------------------- export
+
+    async def _export_json(self):
+        """Export scraped data to JSON files for debugging."""
+        export_dir = Path(settings.json_export_dir)
+        export_dir.mkdir(parents=True, exist_ok=True)
+
+        async with async_session_factory() as db:
+            categories = await crud.get_all_categories(db)
+            cat_data = [CategoryOut.model_validate(c).model_dump() for c in categories]
+            with open(export_dir / "categories.json", "w", encoding="utf-8") as f:
+                json.dump(cat_data, f, ensure_ascii=False, indent=2)
+            logger.info(
+                "Exported %d categories to %s",
+                len(cat_data),
+                export_dir / "categories.json",
+            )
+
+            brands_raw = await crud.get_brands(db)
+            brand_data = [
+                {"name": r["brand"], "product_count": r["product_count"]}
+                for r in brands_raw
+            ]
+            with open(export_dir / "brands.json", "w", encoding="utf-8") as f:
+                json.dump(brand_data, f, ensure_ascii=False, indent=2)
+            logger.info(
+                "Exported %d brands to %s", len(brand_data), export_dir / "brands.json"
+            )
+
+            products = await crud.get_all_products(db)
+            products_dir = export_dir / "products"
+            products_dir.mkdir(parents=True, exist_ok=True)
+            for p in products:
+                detail = ProductDetail.model_validate(p)
+                sku = p.sku.replace("/", "_").replace("\\", "_")
+                with open(products_dir / f"{sku}.json", "w", encoding="utf-8") as f:
+                    json.dump(detail.model_dump(), f, ensure_ascii=False, indent=2)
+            logger.info("Exported %d products to %s", len(products), products_dir)
