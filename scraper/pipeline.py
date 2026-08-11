@@ -27,7 +27,7 @@ logger = logging.getLogger("scraper.pipeline")
 # page of ``limit=100`` products across several concurrent categories produces
 # hundreds of pending asyncio tasks.  Batching the *construction* of those tasks
 # keeps peak memory bounded without changing request concurrency.
-PRODUCT_BATCH_SIZE = 25
+PRODUCT_BATCH_SIZE = 10
 
 
 class CategoryIncompleteError(RetryableHttpError):
@@ -77,7 +77,7 @@ class ScrapePipeline:
         self.category_filter = {x.strip() for x in (category_filter or set()) if x.strip()}
         self.category_scraper = CategoryScraper(self.client)
         self._category_sem = asyncio.Semaphore(max(1, settings.category_concurrency))
-        self._db_sem = asyncio.Semaphore(20)
+        self._db_sem = asyncio.Semaphore(8)
         self._product_locks: Dict[str, asyncio.Lock] = {}
         self._product_cache: Dict[str, int] = {}
         self._seen_product_ids: Set[int] = set()

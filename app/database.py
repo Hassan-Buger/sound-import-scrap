@@ -14,8 +14,13 @@ else:
     engine = create_async_engine(
         settings.database_url,
         echo=settings.DB_ECHO,
-        pool_size=100,
-        max_overflow=50,
+        # Bounded pool: a scrape can otherwise open well over 100 concurrent
+        # asyncpg connections, each holding its own buffers, and OOM a small
+        # container (Railway free/usage plans give ~512 MB).  10 +/- 5 keeps
+        # the scrape fast enough while putting a hard ceiling on connection
+        # memory.
+        pool_size=10,
+        max_overflow=5,
         pool_pre_ping=True,
         pool_use_lifo=True,
         pool_timeout=60,

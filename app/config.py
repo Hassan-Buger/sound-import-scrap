@@ -54,13 +54,16 @@ class Settings(BaseSettings):
     #   MAX_RETRIES / SCRAPER_MAX_RETRIES          - retries per HTTP request
     #   REQUEST_TIMEOUT / SCRAPER_TIMEOUT          - per-request timeout (s)
     #   SCRAPER_CATEGORY_RETRIES                   - retries per failed category
-    concurrency: int = 20
+# Defaults target a small single container (Railway free/usage tiers give
+    # ~512 MB).  Lower concurrency = bounded peak memory; raise via env vars
+    # on larger hosts.
+    concurrency: int = 10
     request_delay: float = 0.1
     max_retries: int = 5
     request_timeout: int = 30
     user_agent: str = "Mozilla/5.0 (compatible; SoundImportsScraper/1.0)"
-    category_concurrency: int = 5
-    product_concurrency: int = 20
+    category_concurrency: int = 2
+    product_concurrency: int = 8
     category_max_retries: int = 3
     rate_limit: float = 0.0
     category_deactivation_threshold: int = 2
