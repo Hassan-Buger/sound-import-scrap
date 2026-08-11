@@ -1,6 +1,44 @@
 from scraper.audit import AuditReport
 
 
+def _row(path, level, source_count, parent=None):
+    return {
+        "name": path.strip("/").rsplit("/", 1)[-1].replace("-", " "),
+        "slug": path.strip("/").rsplit("/", 1)[-1],
+        "canonical_path": path,
+        "parent_path": parent,
+        "level": level,
+        "source_count": source_count,
+    }
+
+
+def _fam(path, family):
+    return {
+        "id": abs(hash(path)),
+        "name": path,
+        "slug": path.strip("/").rsplit("/", 1)[-1],
+        "canonical_path": path,
+        "parent_id": None,
+        "level": len(path.strip("/").split("/")),
+        "product_count": family,
+        "is_active": True,
+    }
+
+
+def _prog(path, total, source_count):
+    return {
+        "id": total if path else 1,
+        "canonical_path": path,
+        "status": "completed",
+        "attempt_count": 1,
+        "source_count": source_count,
+        "total_products": total,
+        "products_scraped": total,
+        "pages_processed": 1,
+        "last_error": None,
+    }
+
+
 def test_audit_reports_exact_tree_and_failure_differences():
     source = [
         {
@@ -103,3 +141,49 @@ def test_audit_reports_exact_tree_and_failure_differences():
     assert "MISSING FROM DATABASE" in rendered
     assert "/en/b/switches/" in rendered
     assert "FAILED OR INCOMPLETE CATEGORIES" in rendered
+
+
+def test_count_differences_use_catalog_when_available():
+    """Completed categories compare against the scraped catalog total,
+    not the sitemap counter. The empty-listing parent is classified
+    separately and the source sitemap count is preserved via `basis`."""
+    source_cats = [
+        _row("/en/accessories/", 1, 299),
+        _row("/en/accessories/cables/", 2, 310, "/en/accessories/"),
+        _row("/en/accessories/cables/arc-welding/", 3, 120, "/en/accessories/cables/"),
+    ]
+    db_cats = [
+        _fam("/en/accessories/", 0),
+        _fam("/en/accessories/cables/", 5),
+        _fam("/en/accessories/cables/arc-welding/", 3),
+    ]
+    progress = [
+        _prog("/en/accessories/", 0, 299),
+        _prog("/en/accessories/cables/", 5, 310),
+        _prog("/en/accessories/cables/arc-welding/", 5, 120),
+    ]
+
+    report = AuditReport.build(source_cats, source_cats, db_cats, progress)
+
+    diff_paths = [row["canonical_path"] for row in report.count_differences]
+    assert diff_paths == ["/en/accessories/cables/arc-welding/"]
+
+    row = report.count_differences[0]
+    assert row["source"] == 5
+    assert row["sitemap"] == 120
+    assert row["catalog"] == 5
+    assert row["database"] == 3
+    assert row["difference"] == -2
+    assert row["basis"] == "catalog"
+
+    assert [r["canonical_path"] for r in report.empty_listing_parents] == [
+        "/en/accessories/"
+    ]
+    empty_parent = report.empty_listing_parents[0]
+    assert empty_parent["placeholder"] == 299
+    assert empty_parent["total"] == 0
+    assert empty_parent["children_product_count"] == 5 + 3
+
+    rendered = report.render(verbose=True)
+    assert "EMPTY-LISTING PARENT CATEGORIES" in rendered
+    assert "basis=catalog" in rendered

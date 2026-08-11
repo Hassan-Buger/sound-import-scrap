@@ -261,6 +261,7 @@ def audit_categories(json_out: bool, verbose: bool, category: Optional[str], fix
 
             async with async_session_factory() as db:
                 db_cats = await crud.get_all_categories(db)
+                direct_counts = await crud.get_direct_product_counts(db)
                 if category:
                     db_cats = [
                         c
@@ -319,6 +320,7 @@ def audit_categories(json_out: bool, verbose: bool, category: Optional[str], fix
                 report_db_rows,
                 progress_rows,
                 supplier.sitemap_parser.last_diagnostics,
+                direct_counts=direct_counts,
             )
 
             if fix:
@@ -369,6 +371,7 @@ def audit_categories(json_out: bool, verbose: bool, category: Optional[str], fix
                     report_db_rows,
                     progress_rows,
                     supplier.sitemap_parser.last_diagnostics,
+                    direct_counts=direct_counts,
                 )
 
             if json_out:

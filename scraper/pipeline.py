@@ -22,6 +22,13 @@ from app.timeutils import utc_now
 
 logger = logging.getLogger("scraper.pipeline")
 
+# Maximum number of product-detail coroutines constructed per listing page.
+# HTTP concurrency is already bounded by the shared client semaphore, but a
+# page of ``limit=100`` products across several concurrent categories produces
+# hundreds of pending asyncio tasks.  Batching the *construction* of those tasks
+# keeps peak memory bounded without changing request concurrency.
+PRODUCT_BATCH_SIZE = 25
+
 
 class CategoryIncompleteError(RetryableHttpError):
     """A category response was reachable but incomplete or inconsistent."""
@@ -489,7 +496,13 @@ class ScrapePipeline:
         products_scraped = 0
         products_failed = 0
         pages_processed = 0
+        # ``source_count`` is the raw counter SoundImports prints next to the
+        # category in its HTML sitemap. It is a family/aggregate metric and is
+        # NOT a reliable source-of-truth for how many products are actually
+        # enumerable. ``catalog_total`` is the JSON catalog's own declared
+        # count, which the scraper then verifies by enumerating pages.
         source_count = 0
+        catalog_total = None
         list_total = 0
         total_pages = 0
         listed_keys: Set[str] = set()
@@ -506,8 +519,9 @@ class ScrapePipeline:
 
                 meta = self.category_scraper.get_metadata(data)
                 if page == 1:
-                    source_count = category.get("source_count", 0) or meta["total"]
+                    source_count = category.get("source_count", 0)
                     list_total = meta["total"]
+                    catalog_total = list_total
                     total_pages = self.category_scraper.get_total_pages(data)
 
                 product_list = self._extract_products_from_list(data)
@@ -613,14 +627,19 @@ class ScrapePipeline:
                     attempt_count=attempt,
                     last_error=None,
                     last_scraped_at=utc_now(),
+                    # Persist the authoritative enumerable catalog count (JSON
+                    # collection.count) instead of the inflated sitemap counter
+                    # so later audits compare against the right source number.
+                    source_product_count=catalog_total or 0,
                 )
 
             logger.info(
-                "Category finished: %s (source=%d, scraped=%d, failed=%d)",
+                "Category finished: %s (catalog=%d, scraped=%d, failed=%d, sitemap=%d)",
                 cat_name,
-                source_count,
+                catalog_total or 0,
                 products_scraped,
                 products_failed,
+                source_count,
             )
 
         except Exception as exc:
@@ -738,10 +757,16 @@ class ScrapePipeline:
                                 raw_json=product_data.get("raw_json"),
                                 images=product_data.get("images", []),
                                 attributes=product_data.get("attributes", []),
-                                product_categories_paths=[
-                                    pc["canonical_path"]
-                                    for pc in product_data.get("product_categories", [])
-                                ],
+                                # Source-of-truth for product/category membership
+                                # is the listing where the product was actually
+                                # discovered. The detail JSON's ``categories``
+                                # nodes repeat every ancestor (Crossover
+                                # components, Coils, Air core coils) and would
+                                # otherwise create relationships to categories
+                                # whose own pages never list the product.
+                                product_categories_paths=[category_path]
+                                if category_path
+                                else [],
                             )
                             self._stats["relationships_created"] += rel_created
                             self._stats["relationships_existing"] += rel_existing
@@ -768,8 +793,17 @@ class ScrapePipeline:
                     failures.append(message)
                 logger.error("Product failed %s", message)
 
-        tasks = [process_one(p) for p in product_list]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        # Build the detail-fetch coroutines in bounded batches.  The shared
+        # HTTP semaphore already caps real request concurrency; this caps the
+        # number of live task objects and ORM session closures in memory so a
+        # 100-product page across a few concurrent categories does not create
+        # hundreds of pending coroutines at once.
+        for start in range(0, len(product_list), PRODUCT_BATCH_SIZE):
+            chunk = product_list[start : start + PRODUCT_BATCH_SIZE]
+            await asyncio.gather(
+                *(process_one(p) for p in chunk),
+                return_exceptions=True,
+            )
         return found, failed, product_ids, failures
 
     @staticmethod
@@ -945,12 +979,26 @@ class ScrapePipeline:
                 "Exported %d brands to %s", len(brand_data), export_dir / "brands.json"
             )
 
-            products = await crud.get_all_products(db)
             products_dir = export_dir / "products"
             products_dir.mkdir(parents=True, exist_ok=True)
-            for p in products:
-                detail = ProductDetail.model_validate(p)
-                sku = p.sku.replace("/", "_").replace("\\", "_")
-                with open(products_dir / f"{sku}.json", "w", encoding="utf-8") as f:
-                    json.dump(detail.model_dump(), f, ensure_ascii=False, indent=2)
-            logger.info("Exported %d products to %s", len(products), products_dir)
+            # Stream products in id-keyed batches instead of loading the full
+            # catalog (products + selectin images/attributes/categories) into
+            # one ORM identity map, which is a memory spike after a full scrape.
+            exported = 0
+            after_id = 0
+            while True:
+                batch = await crud.get_products_batch(db, after_id=after_id, batch=200)
+                if not batch:
+                    break
+                for p in batch:
+                    detail = ProductDetail.model_validate(p)
+                    sku = p.sku.replace("/", "_").replace("\\", "_")
+                    with open(
+                        products_dir / f"{sku}.json", "w", encoding="utf-8"
+                    ) as f:
+                        json.dump(detail.model_dump(), f, ensure_ascii=False, indent=2)
+                    exported += 1
+                after_id = batch[-1].id
+            logger.info(
+                "Exported %d products to %s", exported, products_dir
+            )

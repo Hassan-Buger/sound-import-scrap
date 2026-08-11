@@ -555,6 +555,52 @@ async def get_all_products(db: AsyncSession) -> List[Product]:
     return list(result.scalars().all())
 
 
+async def get_products_batch(
+    db: AsyncSession, after_id: int = 0, batch: int = 200
+) -> List[Product]:
+    """Return up to ``batch`` products with ``id > after_id`` in id order.
+
+    Used by the JSON exporter so it never has to hold the entire catalog (with
+    selectin-loaded images/attributes/categories) in one ORM identity map.
+    """
+    stmt = (
+        select(Product)
+        .where(Product.id > after_id)
+        .order_by(Product.id)
+        .limit(batch)
+        .options(
+            selectinload(Product.images),
+            selectinload(Product.attributes_rel),
+            selectinload(Product.categories),
+        )
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_direct_product_counts(db: AsyncSession) -> Dict[str, int]:
+    """Map of canonical category path -> number of direct M2M relationships.
+
+    Direct counts are how many rows exist in ``product_categories`` for a
+    category, i.e. products linked to that category without considering
+    descendants. The family count is ``categories.product_count``.
+    """
+    cats = await get_all_categories(db)
+    path_by_id = {c.id: c.canonical_path for c in cats}
+    rows = await db.execute(
+        select(
+            product_categories.c.category_id,
+            func.count(product_categories.c.product_id),
+        ).group_by(product_categories.c.category_id)
+    )
+    counts: Dict[str, int] = {}
+    for category_id, n in rows:
+        path = path_by_id.get(category_id)
+        if path:
+            counts[path] = n
+    return counts
+
+
 async def get_changed_products_since(db: AsyncSession, since: datetime) -> List[int]:
     stmt = (
         select(Product.id)

@@ -37,6 +37,7 @@ class AuditReport:
         self.parent_mismatches: List[Dict] = []
         self.level_mismatches: List[Dict] = []
         self.count_differences: List[Dict] = []
+        self.empty_listing_parents: List[Dict] = []
         self.unscrapable: List[Dict] = []
         self.status_counts: Dict[str, int] = {}
         self.parser_diagnostics: Dict = {}
@@ -49,6 +50,7 @@ class AuditReport:
         database: List[Dict],
         progress: Optional[List[Dict]] = None,
         parser_diagnostics: Optional[Dict] = None,
+        direct_counts: Optional[Dict[str, int]] = None,
     ) -> "AuditReport":
         report = cls()
         report.source_categories = list(source)
@@ -91,6 +93,21 @@ class AuditReport:
             if row.get("canonical_path")
         }
         db_by_id = {row.get("id"): row for row in database if row.get("id") is not None}
+
+        all_db_paths = {
+            row.get("canonical_path")
+            for row in database
+            if row.get("canonical_path")
+        }
+        direct = dict(direct_counts or {})
+        latest_progress: Dict[str, Dict] = {}
+        for row in progress or []:
+            path = row.get("canonical_path")
+            if not path:
+                continue
+            current = latest_progress.get(path)
+            if current is None or (row.get("id") or 0) > (current.get("id") or 0):
+                latest_progress[path] = row
 
         for db_row in database:
             path = db_row.get("canonical_path")
@@ -139,19 +156,70 @@ class AuditReport:
                     }
                 )
 
-            source_count = source_row.get("source_count") or 0
-            database_count = db_row.get("product_count") or 0
-            if source_count and source_count != database_count:
-                report.flag_count_difference(path, source_count, database_count)
-
-        latest_progress: Dict[str, Dict] = {}
-        for row in progress or []:
-            path = row.get("canonical_path")
-            if not path:
+            # Count reconciliation.  Two different numbers exist on the site:
+            #   * sitemap counter  (source_row.source_count): a family/aggregate
+            #     metric that frequently disagrees with the real catalog.
+            #   * JSON catalog count (progress.total_products): the number of
+            #     products actually enumerable on the category URL; this is the
+            #     value the scraper verifies (list_total == unique listed).
+            # A category whose own listing is empty but which has children
+            # (e.g. /accessories/cables/) is NOT a discrepancy: its products
+            # live in the children.  Such rows are listed separately.
+            family_count = db_row.get("product_count") or 0
+            src_count = source_row.get("source_count") or 0
+            prog_row = latest_progress.get(path)
+            catalog_count = None
+            if prog_row is not None:
+                catalog_count = prog_row.get("total_products")
+            has_children = any(
+                other != path
+                and other is not None
+                and other.startswith(path.rstrip("/") + "/")
+                for other in all_db_paths
+            )
+            if catalog_count == 0 and has_children:
+                child_paths = [
+                    other
+                    for other in all_db_paths
+                    if other and other != path and other.startswith(path.rstrip("/") + "/")
+                ]
+                report.empty_listing_parents.append(
+                    {
+                        "canonical_path": path,
+                        "placeholder": src_count,
+                        "total": 0,
+                        "children_product_count": sum(
+                            (db_by_path.get(child) or {}).get("product_count")
+                            or (latest_progress.get(child) or {}).get("total_products")
+                            or 0
+                            for child in child_paths
+                        ),
+                    }
+                )
                 continue
-            current = latest_progress.get(path)
-            if current is None or (row.get("id") or 0) > (current.get("id") or 0):
-                latest_progress[path] = row
+            if catalog_count:
+                if catalog_count != family_count:
+                    report.flag_count_difference(
+                        path,
+                        catalog_count,
+                        family_count,
+                        basis="catalog",
+                        sitemap=src_count,
+                        catalog=catalog_count,
+                        family=family_count,
+                        direct=direct.get(path, 0),
+                    )
+            elif src_count and src_count != family_count:
+                report.flag_count_difference(
+                    path,
+                    src_count,
+                    family_count,
+                    basis="sitemap",
+                    sitemap=src_count,
+                    catalog=None,
+                    family=family_count,
+                    direct=direct.get(path, 0),
+                )
 
         report.status_counts = dict(
             Counter((row.get("status") or "unknown").lower() for row in latest_progress.values())
@@ -195,14 +263,28 @@ class AuditReport:
         self.__dict__.update(rebuilt.__dict__)
 
     def flag_count_difference(
-        self, canonical_path: str, source: int, database: int
+        self,
+        canonical_path: str,
+        source: int,
+        database: int,
+        *,
+        basis: str = "sitemap",
+        sitemap: Optional[int] = None,
+        catalog: Optional[int] = None,
+        family: Optional[int] = None,
+        direct: Optional[int] = None,
     ) -> None:
         self.count_differences.append(
             {
                 "canonical_path": canonical_path,
                 "source": source,
+                "sitemap": sitemap,
+                "catalog": catalog,
                 "database": database,
                 "difference": database - source,
+                "basis": basis,
+                "family_db": family if family is not None else database,
+                "direct_db": direct if direct is not None else database,
             }
         )
 
@@ -224,6 +306,7 @@ class AuditReport:
             "parent_mismatches": self.parent_mismatches,
             "level_mismatches": self.level_mismatches,
             "count_differences": self.count_differences,
+            "empty_listing_parents": self.empty_listing_parents,
             "unscrapable": self.unscrapable,
             "status_counts": dict(self.status_counts),
             "parser_diagnostics": dict(self.parser_diagnostics),
@@ -315,8 +398,39 @@ class AuditReport:
             for row in self.count_differences:
                 lines.append(
                     f"  {row['canonical_path']}: source={row['source']} "
-                    f"db={row['database']} diff={row['difference']:+d}"
+                    f"sitemap={row.get('sitemap')} catalog={row.get('catalog')} "
+                    f"family={row.get('family_db')} direct={row.get('direct_db')} "
+                    f"diff={row['difference']:+d} [basis={row['basis']}]"
                 )
+            lines.append("")
+
+        if self.empty_listing_parents:
+            lines.extend(
+                ["-" * 67, "EMPTY-LISTING PARENT CATEGORIES", "-" * 67]
+            )
+            lines.append(
+                "  Parent whose own URL lists no direct products; they live in children."
+            )
+            for row in self.empty_listing_parents:
+                lines.append(
+                    f"  {row['canonical_path']}: sitemap_placeholder={row['placeholder']} "
+                    f"listed=0 children_sum={row['children_product_count']}"
+                )
+            for row in self.empty_listing_parents:
+                child_rows = [
+                    o
+                    for o in sorted(self.db_categories, key=lambda x: x.get("canonical_path", ""))
+                    if o.get("canonical_path", "") != row["canonical_path"]
+                    and (o.get("canonical_path", "") or "").startswith(
+                        row["canonical_path"].rstrip("/") + "/"
+                    )
+                ]
+                for child in child_rows:
+                    lines.append(
+                        f"      child {child.get('canonical_path')}: "
+                        f"family={child.get('product_count')} "
+                        f"source={child.get('source_product_count')}"
+                    )
             lines.append("")
 
         if self.unscrapable:
