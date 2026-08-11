@@ -490,6 +490,12 @@ def check_coverage(marker_file: Optional[str]):
         marker("done")
 
     asyncio.run(_run())
+
+
+@cli.command()
+@click.option("--host", default=None, help="API host")
+@click.option("--port", type=int, default=None, help="API port")
+def serve(host: Optional[str], port: Optional[int]):
     """Start the FastAPI server."""
     import os
     import uvicorn
