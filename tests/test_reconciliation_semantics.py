@@ -291,3 +291,57 @@ async def test_rerun_is_idempotent(
     async with session_factory() as db:
         progress = list((await db.execute(select(ScrapeProgress))).scalars().all())
         assert progress
+
+
+@pytest.mark.asyncio
+async def test_coverage_snapshot_counts_uniques_and_appearances(
+    session_factory, fast_settings, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(pipeline_mod, "async_session_factory", session_factory)
+    monkeypatch.setattr(settings, "json_export_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "product_concurrency", 2)
+    monkeypatch.setattr(settings, "category_concurrency", 1)
+
+    supplier = CatalogSupplier(
+        categories=[_category(LEAF_PATH, 1230)],
+        catalog_products=_catalog_products(5),
+    )
+    await ScrapePipeline(supplier).run()
+
+    from app import crud
+
+    async with session_factory() as db:
+        snap = await crud.get_coverage_snapshot(db)
+
+    assert snap["total_products"] == 5
+    assert snap["distinct_linked_products"] == 5
+    assert snap["category_appearances"] == 5
+    assert snap["categories_total"] == 1
+    assert snap["fallback_only_products"] == 0
+    assert snap["last_job"] is not None
+    assert snap["last_job"]["job_status"] == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_coverage_snapshot_detects_listing_fallback_only_products(
+    session_factory, fast_settings, monkeypatch, tmp_path
+):
+    """A product stored from the listing (brand absent) is flagged as
+    fallback-only: it exists but was not captured in full detail."""
+    monkeypatch.setattr(pipeline_mod, "async_session_factory", session_factory)
+    monkeypatch.setattr(settings, "json_export_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "product_concurrency", 2)
+    monkeypatch.setattr(settings, "category_concurrency", 1)
+
+    supplier = CatalogSupplier(
+        categories=[_category(LEAF_PATH, 1230)],
+        catalog_products=_catalog_products(3),
+    )
+    await ScrapePipeline(supplier).run()
+
+    from app import crud
+
+    async with session_factory() as db:
+        snap = await crud.get_coverage_snapshot(db)
+    assert snap["total_products"] == 3
+    assert snap["fallback_only_products"] == 0

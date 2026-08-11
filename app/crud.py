@@ -601,6 +601,58 @@ async def get_direct_product_counts(db: AsyncSession) -> Dict[str, int]:
     return counts
 
 
+async def get_coverage_snapshot(db: AsyncSession) -> Dict[str, Any]:
+    """Compact data-quality snapshot used by ``check-coverage``.
+
+    Distinguishes unique products from product/category *appearances* (the
+    first-version scraper miscounted appearances as products) and reports
+    products stored without detail (listing-fallback only).
+    """
+    total_products = (
+        await db.execute(select(func.count(Product.id)))
+    ).scalar() or 0
+    fallback_only = (
+        await db.execute(
+            select(func.count(Product.id)).where(Product.brand.is_(None))
+        )
+    ).scalar() or 0
+    appearances = (
+        await db.execute(select(func.count()).select_from(product_categories))
+    ).scalar() or 0
+    distinct_linked = (
+        await db.execute(
+            select(
+                func.count(func.distinct(product_categories.c.product_id))
+            ).select_from(product_categories)
+        )
+    ).scalar() or 0
+    categories_total = (
+        await db.execute(select(func.count(Category.id)))
+    ).scalar() or 0
+    last_job = (
+        await db.execute(select(ScrapeJob).order_by(ScrapeJob.id.desc()).limit(1))
+    ).scalar_one_or_none()
+    return {
+        "total_products": total_products,
+        "fallback_only_products": fallback_only,
+        "category_appearances": appearances,
+        "distinct_linked_products": distinct_linked,
+        "categories_total": categories_total,
+        "last_job": {
+            "id": last_job.id,
+            "status": getattr(last_job, "status", None),
+            "job_status": getattr(last_job, "job_status", None),
+            "failed": getattr(last_job, "failed", None),
+            "succeeded": getattr(last_job, "succeeded", None),
+            "finished_at": (
+                last_job.finished_at.isoformat() if last_job.finished_at else None
+            ),
+        }
+        if last_job is not None
+        else None,
+    }
+
+
 async def get_changed_products_since(db: AsyncSession, since: datetime) -> List[int]:
     stmt = (
         select(Product.id)

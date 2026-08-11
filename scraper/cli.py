@@ -384,10 +384,112 @@ def audit_categories(json_out: bool, verbose: bool, category: Optional[str], fix
     asyncio.run(_run())
 
 
-@cli.command()
-@click.option("--host", default=None, help="API host")
-@click.option("--port", type=int, default=None, help="API port")
-def serve(host: Optional[str], port: Optional[int]):
+@cli.command("check-coverage")
+@click.option(
+    "--marker-file",
+    default=None,
+    help="Path to append step markers to (helps diagnose silent exits in exec shells)",
+)
+def check_coverage(marker_file: Optional[str]):
+    """Report product/category coverage and data-quality gaps.
+
+    Shows how many DISTINCT products were scraped vs how many category
+    *appearances* exist (the first-version scraper miscounted appearances as
+    products), how many products were stored without full detail, and the
+    state of the last sync job.
+    """
+
+    async def _run():
+        async def marker(step: str):
+            line = f"MARKER {step}"
+            click.echo(line)
+            if marker_file:
+                with open(marker_file, "a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+                    fh.flush()
+
+        await _init_db()
+        from app import crud
+        from app.database import async_session_factory
+        from scraper.audit import AuditReport
+
+        marker("init-ok")
+        async with async_session_factory() as db:
+            marker("session-open")
+            snapshot = await crud.get_coverage_snapshot(db)
+            marker("snapshot-ok")
+            db_cats = await crud.get_all_categories(db)
+            marker("cats-ok")
+            direct_counts = await crud.get_direct_product_counts(db)
+            marker("direct-ok")
+            from app.models import ScrapeProgress
+            from sqlalchemy import select
+
+            progress_models = list(
+                (
+                    await db.execute(select(ScrapeProgress).order_by(ScrapeProgress.id))
+                )
+                .scalars()
+                .all()
+            )
+            marker("progress-ok")
+            db_rows = [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "slug": c.slug,
+                    "canonical_path": c.canonical_path,
+                    "level": c.level,
+                    "parent_id": c.parent_id,
+                    "product_count": c.product_count,
+                    "source_product_count": c.source_product_count,
+                    "is_active": c.is_active,
+                    "missing_streak": c.missing_streak,
+                }
+                for c in db_cats
+            ]
+            progress_rows = [
+                {
+                    "id": row.id,
+                    "canonical_path": row.canonical_path,
+                    "status": row.status,
+                    "attempt_count": row.attempt_count,
+                    "source_count": row.source_count,
+                    "total_products": row.total_products,
+                    "products_scraped": row.products_scraped,
+                    "pages_processed": row.pages_processed,
+                    "last_error": row.last_error,
+                }
+                for row in progress_models
+            ]
+            marker("rows-ok")
+
+        import json
+
+        marker("build-via-audit-start")
+        try:
+            report = AuditReport.build(
+                [], [], db_rows, progress_rows, direct_counts=direct_counts
+            )
+            rendered = report.render(verbose=False)
+        except BaseException:
+            import traceback
+
+            tb = traceback.format_exc()
+            click.echo("AUDIT_BUILD_FAILED\n" + tb)
+            marker("audit-build-failed")
+            raise
+        marker("audit-build-ok")
+
+        click.echo(json.dumps(snapshot, indent=2, ensure_ascii=False))
+        click.echo(
+            "explain: appearances/unique = avg categories per product "
+            "(>1 proves v1 double-counting)."
+        )
+        click.echo(rendered)
+        marker("done")
+
+    asyncio.run(_run())
     """Start the FastAPI server."""
     import os
     import uvicorn
