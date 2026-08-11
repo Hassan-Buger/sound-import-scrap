@@ -400,7 +400,7 @@ def check_coverage(marker_file: Optional[str]):
     """
 
     async def _run():
-        async def marker(step: str):
+        def marker(step: str):
             line = f"MARKER {step}"
             click.echo(line)
             if marker_file:
