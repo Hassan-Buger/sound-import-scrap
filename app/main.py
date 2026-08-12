@@ -43,6 +43,9 @@ async def lifespan(app: FastAPI):
     for attempt in range(1, 4):
         try:
             await upgrade_database()
+            from app import telemetry
+
+            await telemetry.create_telemetry_table()
             async with async_session_factory() as session:
                 interrupted = await crud.mark_running_jobs_interrupted(
                     session, settings.job_stale_after

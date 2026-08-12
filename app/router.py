@@ -303,6 +303,13 @@ async def get_stats(
     )
 
 
+@router.get("/telemetry")
+async def telemetry(limit: int = Query(60, le=500)):
+    from app import telemetry as _telemetry
+
+    return await _telemetry.read_telemetry(limit=limit)
+
+
 @router.post("/sync", response_model=SyncResponse)
 async def trigger_sync(
     background_tasks: BackgroundTasks,
@@ -340,13 +347,31 @@ async def trigger_sync(
             supplier = SoundImportsScraper()
             pipeline = ScrapePipeline(supplier, full=not incremental)
 
-            logger.info("Calling pipeline.run() for job_id=%d", job_id)
-            stats = await pipeline.run(job_id=job_id)
-            logger.info(
-                "pipeline.run() returned for job_id=%d: stats=%s",
-                job_id,
-                stats,
-            )
+            import asyncio as _asyncio
+            from app import telemetry as _telemetry
+
+            stop_event = _asyncio.Event()
+
+            async def _sample_loop():
+                try:
+                    while not stop_event.is_set():
+                        await _telemetry.record(phase="pipeline")
+                        await _asyncio.sleep(5)
+                except Exception:  # noqa: BLE001
+                    logger.exception("telemetry sampler died")
+
+            sampler_task = _asyncio.create_task(_sample_loop())
+            try:
+                logger.info("Calling pipeline.run() for job_id=%d", job_id)
+                stats = await pipeline.run(job_id=job_id)
+                logger.info(
+                    "pipeline.run() returned for job_id=%d: stats=%s",
+                    job_id,
+                    stats,
+                )
+            finally:
+                stop_event.set()
+                await sampler_task
 
         except Exception as e:
             logger.exception("Background scrape failed: job_id=%d, error=%s", job_id, e)
