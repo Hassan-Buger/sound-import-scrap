@@ -405,3 +405,174 @@ async def trigger_sync(
             f"{'resumed' if claim_state == 'resumed' else 'started'} (job #{job_id})"
         ),
     )
+
+
+@router.post(
+    "/category/{category_id_or_slug}/sync",
+    response_model=ProductsResponse,
+    summary="Rescrape and refresh stock & specs for all products in a single category immediately",
+)
+async def sync_category(
+    category_id_or_slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch live data from SoundImports for a specific category and update the DB."""
+    cat = await crud.get_category_by_id_or_slug(db, category_id_or_slug)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    from scraper.soundimports import SoundImportsScraper
+
+    supplier = SoundImportsScraper()
+    try:
+        raw_url = cat.url or cat.canonical_path
+        category_url = (
+            raw_url
+            if str(raw_url).startswith("http")
+            else f"{settings.base_url.rstrip('/')}/en/{str(raw_url).lstrip('/')}"
+        )
+        page_data = await supplier.get_product_list(category_url, page=1, limit=100)
+        raw_products = supplier.category_scraper.extract_products(page_data)
+
+        for raw_p in raw_products:
+            p_summary = supplier.extract_product_summary(raw_p)
+            p_url = p_summary.get("url")
+            if not p_url:
+                continue
+            try:
+                detail_data = await supplier.get_product_detail(p_url)
+                html_doc = None
+                try:
+                    html_doc = await supplier._client.fetch_html(p_url)
+                except Exception:
+                    pass
+                prod_data = supplier.extract_product_detail(
+                    detail_data,
+                    category_slug=cat.canonical_path,
+                    html_doc=html_doc,
+                )
+                await crud.upsert_product(
+                    db,
+                    product_id=prod_data["product_id"],
+                    sku=prod_data["sku"],
+                    ean=prod_data.get("ean"),
+                    title=prod_data.get("title"),
+                    description=prod_data.get("description"),
+                    short_description=prod_data.get("short_description"),
+                    long_description=prod_data.get("long_description"),
+                    regular_price=prod_data.get("regular_price"),
+                    price=prod_data.get("price"),
+                    stock=prod_data.get("stock"),
+                    stock_status=prod_data.get("stock_status"),
+                    brand=prod_data.get("brand"),
+                    currency=prod_data.get("currency", "EUR"),
+                    url=prod_data.get("url"),
+                    category_ids=cat.slug,
+                    raw_json=prod_data.get("raw_json"),
+                    images=prod_data.get("images", []),
+                    attributes=prod_data.get("attributes", []),
+                    product_categories_paths=[cat.canonical_path],
+                )
+            except Exception as exc:
+                logger.warning("Failed to sync product %s: %s", p_url, exc)
+
+        await db.commit()
+    finally:
+        await supplier._client.close()
+
+    products, total = await crud.get_products_paginated(
+        db,
+        category_id=cat.id,
+        page=1,
+        per_page=100,
+    )
+    return ProductsResponse(
+        total=total,
+        page=1,
+        limit=100,
+        products=[ProductListItem.model_validate(p) for p in products],
+    )
+
+
+@router.post(
+    "/product/sku/{sku:path}/sync",
+    response_model=ProductDetail,
+    summary="Rescrape and refresh stock & specs for a single product by SKU immediately",
+)
+async def sync_product_by_sku(
+    sku: str,
+    db: AsyncSession = Depends(get_db),
+):
+    from urllib.parse import unquote
+
+    sku = unquote(sku)
+    product = await crud.get_product_by_sku(db, sku)
+
+    from scraper.soundimports import SoundImportsScraper
+
+    supplier = SoundImportsScraper()
+    try:
+        p_url = (
+            product.url
+            if product and product.url
+            else f"{settings.base_url.rstrip('/')}/en/{sku.lower()}.html"
+        )
+        detail_data = await supplier.get_product_detail(p_url)
+        html_doc = None
+        try:
+            html_doc = await supplier._client.fetch_html(p_url)
+        except Exception:
+            pass
+        cat_path = (
+            product.categories[0].canonical_path
+            if product and product.categories
+            else None
+        )
+        prod_data = supplier.extract_product_detail(
+            detail_data,
+            category_slug=cat_path,
+            html_doc=html_doc,
+        )
+        db_prod, _, _ = await crud.upsert_product(
+            db,
+            product_id=prod_data["product_id"],
+            sku=prod_data["sku"],
+            ean=prod_data.get("ean"),
+            title=prod_data.get("title"),
+            description=prod_data.get("description"),
+            short_description=prod_data.get("short_description"),
+            long_description=prod_data.get("long_description"),
+            regular_price=prod_data.get("regular_price"),
+            price=prod_data.get("price"),
+            stock=prod_data.get("stock"),
+            stock_status=prod_data.get("stock_status"),
+            brand=prod_data.get("brand"),
+            currency=prod_data.get("currency", "EUR"),
+            url=prod_data.get("url"),
+            category_ids=product.category_ids if product else "",
+            raw_json=prod_data.get("raw_json"),
+            images=prod_data.get("images", []),
+            attributes=prod_data.get("attributes", []),
+            product_categories_paths=[cat_path] if cat_path else [],
+        )
+        await db.commit()
+        await db.refresh(db_prod)
+        return ProductDetail.model_validate(db_prod)
+    finally:
+        await supplier._client.close()
+
+
+@router.post(
+    "/product/{product_id}/sync",
+    response_model=ProductDetail,
+    summary="Rescrape and refresh stock & specs for a single product by ID immediately",
+)
+async def sync_product_by_id(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    product = await crud.get_product_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return await sync_product_by_sku(product.sku, db)
+
