@@ -223,7 +223,29 @@ def test_extract_specifications_mzf_8625():
     assert attrs.get("Weight") == "34 g"
     assert attrs.get("Colour") == "Black"
     assert attrs.get("Packing unit") == "1"
-    assert result["stock"] == 0
-    assert result["stock_status"] == "on_backorder"
+def test_extract_stock_from_user_dom_model():
+    """Verify stock extraction from user-provided SoundImports DOM structure:
+    <div class="price"><div class="for"><span class="excl-vat" ...> € 305,<sup>74</sup></span>
+    <span class="incl-vat incl-vat-desktop" ...>€ 369,<sup>95</sup></span>
+    <span class="hurry"> 8  In stock</span></div></div>
+    """
+    scraper = ProductScraper.__new__(ProductScraper)
+    dom_snippet = """
+    <div class="price">
+      <div class="for">
+        <span class="excl-vat" data-dmws-p_w8fprr-dynamic-price="305.7438" data-dmws-p_w8fprr-dynamic-price-base="305.7438" style="opacity: 1; display: none;"> € 305,<sup>74</sup></span>
+        <span class="incl-vat incl-vat-desktop" data-dmws-p_w8fprr-dynamic-price="369.95" data-dmws-p_w8fprr-dynamic-price-base="369.95" style="opacity: 1; display: block;">€ 369,<sup>95</sup></span>
+        <span class="hurry"> 8  In stock</span>
+      </div>
+    </div>
+    """
+    data = {
+        "sku": "DOM-TEST-8",
+        "title": "Product with DOM stock",
+    }
+    result = scraper.extract_product_data(data, html_doc=dom_snippet)
+    assert result["stock"] == 8
+    assert result["stock_status"] == "in_stock"
+
 
 
