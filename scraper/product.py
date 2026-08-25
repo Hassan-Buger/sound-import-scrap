@@ -219,8 +219,13 @@ class ProductScraper:
     # Specification extraction (Part 3)
     # ------------------------------------------------------------------
 
-    def _extract_attributes(self, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _extract_attributes(
+        self, raw: Dict[str, Any], html_doc: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Extract all product specifications as a sorted list of dicts.
+
+        Combines structured JSON attributes/specs, HTML #specs DL/tables,
+        and content HTML specification paragraphs.
 
         Each item::
 
@@ -228,20 +233,71 @@ class ProductScraper:
              "sort_order": int, "normalized_name": str}
         """
         attributes: List[Dict[str, Any]] = []
-        seen_normalized: set = set()  # (normalized_name, normalized_value)
+        seen_keys: Dict[str, int] = {}  # norm_name -> index in attributes
 
+        def add_spec(key: Any, val: Any) -> None:
+            if key is None:
+                return
+            import html
+
+            k = html.unescape(str(key)).replace("\u00a0", " ")
+            k = re.sub(r"\s+", " ", k).strip()
+            k = re.sub(r":\s*$", "", k).strip()
+
+            v = html.unescape(str(val)) if val is not None else ""
+            v = v.replace("\u00a0", " ")
+            v = re.sub(r"\s+", " ", v).strip()
+
+            if not k or len(k) > 70:
+                return
+            # Ignore UI, navigation, or action buttons
+            if any(
+                ign in k.lower()
+                for ign in [
+                    "review",
+                    "reviews",
+                    "show more",
+                    "show less",
+                    "share",
+                    "add to cart",
+                    "delivery",
+                ]
+            ):
+                return
+
+            norm_k = self._normalize_spec_name(k)
+            if not norm_k:
+                return
+
+            if norm_k in seen_keys:
+                idx = seen_keys[norm_k]
+                # If existing value was empty and new has a value, fill it
+                if not attributes[idx]["attribute_value"] and v:
+                    attributes[idx]["attribute_value"] = v
+                return
+
+            seen_keys[norm_k] = len(attributes)
+            attributes.append(
+                {
+                    "attribute_name": k,
+                    "attribute_value": v,
+                    "sort_order": len(attributes),
+                    "normalized_name": norm_k,
+                }
+            )
+
+        # 1. Structured JSON attributes / specs
         raw_specs = raw.get("specs")
         if isinstance(raw_specs, dict):
-            # SoundImports format: {spec_id: {id, title, value}}
             for spec_id, spec_data in raw_specs.items():
                 if isinstance(spec_data, dict):
-                    name = (
+                    k = (
                         spec_data.get("title")
                         or spec_data.get("name")
                         or spec_data.get("label")
                     )
-                    value = spec_data.get("value") or spec_data.get("text")
-                    self._add_spec(attributes, seen_normalized, name, value)
+                    v = spec_data.get("value") or spec_data.get("text")
+                    add_spec(k, v)
 
         raw_attrs = (
             raw.get("attributes")
@@ -251,52 +307,103 @@ class ProductScraper:
         )
         if isinstance(raw_attrs, dict):
             for key, value in raw_attrs.items():
-                self._add_spec(attributes, seen_normalized, key, value)
-
-        specs_list = raw.get("specificationsList") or raw.get("featureList") or []
-        if isinstance(specs_list, list):
-            for item in specs_list:
+                add_spec(key, value)
+        elif isinstance(raw_attrs, list):
+            for item in raw_attrs:
                 if isinstance(item, dict):
-                    name = item.get("name") or item.get("label") or item.get("key")
-                    value = item.get("value") or item.get("text")
-                    self._add_spec(attributes, seen_normalized, name, value)
+                    k = (
+                        item.get("name")
+                        or item.get("label")
+                        or item.get("key")
+                        or item.get("attribute_name")
+                    )
+                    v = (
+                        item.get("value")
+                        or item.get("text")
+                        or item.get("attribute_value")
+                    )
+                    add_spec(k, v)
 
-        # Assign sort_order based on final list index
+        # 2. Parse HTML content or document for dedicated Specifications
+        content_html = raw.get("content") or ""
+        html_sources = []
+        if content_html:
+            html_sources.append(content_html)
+        if html_doc and html_doc != content_html:
+            html_sources.append(html_doc)
+
+        for h_src in html_sources:
+            try:
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(h_src, "html.parser")
+
+                # Look for #specs or section.specs (e.g. from full page HTML)
+                specs_sec = soup.find(id="specs") or soup.find(
+                    "section", class_=re.compile(r"specs|specifications", re.I)
+                )
+                if specs_sec:
+                    for dl in specs_sec.find_all("dl"):
+                        for div in dl.find_all(["div", "dt"]):
+                            dt = div if div.name == "dt" else div.find("dt")
+                            dd = div.find("dd") if div.name != "dd" else div
+                            if dt and dd:
+                                dt_clone = BeautifulSoup(str(dt), "html.parser")
+                                for nested_dd in dt_clone.find_all("dd"):
+                                    nested_dd.decompose()
+                                k_text = dt_clone.get_text(" ", strip=True)
+                                v_text = dd.get_text(" ", strip=True)
+                                add_spec(k_text, v_text)
+
+                    for table in specs_sec.find_all("table"):
+                        for row in table.find_all("tr"):
+                            cells = row.find_all(["th", "td"])
+                            if len(cells) == 2:
+                                add_spec(
+                                    cells[0].get_text(strip=True),
+                                    cells[1].get_text(strip=True),
+                                )
+
+                # Look for dedicated Specifications paragraph in content HTML
+                for tag in soup.find_all(["p", "div", "li"]):
+                    strong = tag.find("strong")
+                    has_spec_label = bool(
+                        strong and "specification" in strong.get_text().lower()
+                    )
+                    tag_text = tag.get_text(" ", strip=True)
+                    if has_spec_label or tag_text.lower().startswith("specifications:"):
+                        clean_text = re.sub(
+                            r"^.*?specifications?\s*:?\s*",
+                            "",
+                            tag_text,
+                            flags=re.IGNORECASE,
+                        ).strip()
+                        items = re.split(r"[•▪|;\n]", clean_text)
+                        for itm in items:
+                            itm = itm.strip()
+                            if ":" in itm:
+                                k, v = itm.split(":", 1)
+                                add_spec(k, v)
+                            elif " - " in itm:
+                                k, v = itm.split(" - ", 1)
+                                add_spec(k, v)
+            except Exception as exc:
+                logger.debug("HTML specification extraction error: %s", exc)
+
+        # 3. Always include foundational identity specifications (Article number & EAN)
+        sku = raw.get("sku") or raw.get("number") or raw.get("articleNumber")
+        if sku:
+            add_spec("Article number", sku)
+
+        ean = raw.get("ean") or raw.get("gtin") or raw.get("upc")
+        if ean:
+            add_spec("EAN", ean)
+
+        # Reassign sort_order based on final sequence
         for i, attr in enumerate(attributes):
             attr["sort_order"] = i
 
         return attributes
-
-    def _add_spec(
-        self, attributes: List[Dict[str, Any]], seen: set, name: Any, value: Any
-    ) -> None:
-        """Add a single spec entry if it passes validation and dedup."""
-        if not name:
-            return
-        name = str(name).strip()
-        if not name:
-            return
-        val = str(value).strip() if value is not None else ""
-        # Decode HTML entities
-        import html
-
-        name = html.unescape(name)
-        val = html.unescape(val)
-        # Normalize for dedup
-        norm_name = self._normalize_spec_name(name)
-        norm_val = val.lower().strip()
-        dedup_key = (norm_name, norm_val)
-        if dedup_key in seen:
-            return
-        seen.add(dedup_key)
-        attributes.append(
-            {
-                "attribute_name": name,
-                "attribute_value": val,
-                "sort_order": 0,  # will be set later
-                "normalized_name": norm_name,
-            }
-        )
 
     # ------------------------------------------------------------------
     # Image extraction
@@ -447,7 +554,10 @@ class ProductScraper:
         return result
 
     def extract_product_data(
-        self, raw: Dict[str, Any], category_slug: Optional[str] = None
+        self,
+        raw: Dict[str, Any],
+        category_slug: Optional[str] = None,
+        html_doc: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Normalize raw product JSON into a structured dict for DB upsert."""
         product_id = str(
@@ -502,6 +612,17 @@ class ProductScraper:
         elif isinstance(stock_data, str) and stock_data.isdigit():
             stock = int(stock_data)
 
+        # Fallback to HTML if stock was not in JSON
+        if stock is None and html_doc:
+            match = re.search(r"(\d+)\s*\+?\s*in\s*stock", html_doc, re.IGNORECASE)
+            if match:
+                try:
+                    stock = int(match.group(1))
+                except (ValueError, TypeError):
+                    pass
+            elif re.search(r"out\s*of\s*stock", html_doc, re.IGNORECASE):
+                stock = 0
+
         stock_status = None
         if isinstance(stock_data, dict):
             on_stock = stock_data.get("on_stock")
@@ -543,6 +664,14 @@ class ProductScraper:
             elif stock is not None:
                 stock_status = "in_stock" if stock > 0 else "out_of_stock"
 
+        if not stock_status and html_doc:
+            if re.search(r"in\s*stock", html_doc, re.IGNORECASE):
+                stock_status = "in_stock"
+            elif re.search(r"out\s*of\s*stock", html_doc, re.IGNORECASE):
+                stock_status = "out_of_stock"
+            elif re.search(r"back\s*in\s*stock|backorder", html_doc, re.IGNORECASE):
+                stock_status = "on_backorder"
+
         brand_data = raw.get("brand") or raw.get("manufacturer") or {}
         if isinstance(brand_data, dict):
             brand = brand_data.get("name") or brand_data.get("title")
@@ -574,9 +703,17 @@ class ProductScraper:
             category_ids = source_slug
 
         images_list = self._extract_images(raw)
-        attributes_list = self._extract_attributes(raw)
+        attributes_list = self._extract_attributes(raw, html_doc=html_doc)
         price_val = float(price) if price is not None and price != "" else None
         descriptions = self._build_descriptions(raw)
+
+        logger.info(
+            "Extracted product SKU=%s stock=%s stock_status=%s specifications_count=%d",
+            sku,
+            stock,
+            stock_status,
+            len(attributes_list),
+        )
 
         return {
             "product_id": product_id,

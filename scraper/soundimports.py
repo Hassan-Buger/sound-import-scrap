@@ -74,8 +74,11 @@ class SoundImportsScraper(BaseSupplierScraper):
         return await self.product_scraper.fetch_detail(product_url)
 
     def extract_product_detail(
-        self, raw: Dict[str, Any], category_slug: str = None
+        self,
+        raw: Dict[str, Any],
+        category_slug: str = None,
+        html_doc: Optional[str] = None,
     ) -> Dict[str, Any]:
         return self.product_scraper.extract_product_data(
-            raw, category_slug=category_slug
+            raw, category_slug=category_slug, html_doc=html_doc
         )

@@ -22,10 +22,12 @@ def test_extract_product_data(sample_product_detail_json):
     assert len(cover_images) == 1
     assert cover_images[0]["image_url"] == "https://www.soundimports.eu/media/image/hivi-os-10.jpg"
 
-    assert len(result["attributes"]) == 4
+    assert len(result["attributes"]) == 6
     attr_names = [a["attribute_name"] for a in result["attributes"]]
     assert "Impedance" in attr_names
     assert "Sensitivity" in attr_names
+    assert "Article number" in attr_names
+    assert "EAN" in attr_names
 
     raw = json.loads(result["raw_json"])
     assert raw["sku"] == "HI-VI-OS-10"
@@ -50,7 +52,9 @@ def test_extract_product_data_minimal():
     assert result["price"] is None
     assert result["regular_price"] is None
     assert result["images"] == []
-    assert result["attributes"] == []
+    assert len(result["attributes"]) == 1
+    assert result["attributes"][0]["attribute_name"] == "Article number"
+    assert result["attributes"][0]["attribute_value"] == "MIN-001"
 
 
 def test_extract_product_data_brand_string():
@@ -102,26 +106,26 @@ def test_extract_product_data_images_dedup():
 def test_extract_soundimports_stock_level_and_statuses():
     scraper = ProductScraper.__new__(ProductScraper)
 
-    # In stock with numeric level
+    # In stock with numeric level (MZF-8624 case)
     res1 = scraper.extract_product_data({
-        "sku": "SKU-ST-1",
+        "sku": "MZF-8624",
         "stock": {
             "available": True,
             "on_stock": True,
             "track": True,
-            "allow_outofstock_sale": True,
-            "level": 26,
+            "allow_outofstock_sale": False,
+            "level": 91,
             "minimum": 1,
-            "maximum": 10000,
+            "maximum": 91,
             "delivery": False,
         }
     })
-    assert res1["stock"] == 26
+    assert res1["stock"] == 91
     assert res1["stock_status"] == "in_stock"
 
-    # Out of stock with backorder allowed
+    # Out of stock with backorder allowed (MZF-8625 case)
     res2 = scraper.extract_product_data({
-        "sku": "SKU-ST-2",
+        "sku": "MZF-8625",
         "stock": {
             "available": True,
             "on_stock": False,
@@ -136,22 +140,22 @@ def test_extract_soundimports_stock_level_and_statuses():
     assert res2["stock"] == 0
     assert res2["stock_status"] == "on_backorder"
 
-    # Out of stock completely
+    # In stock with level 10 (MMP006 case)
     res3 = scraper.extract_product_data({
-        "sku": "SKU-ST-3",
+        "sku": "MMP006",
         "stock": {
-            "available": False,
-            "on_stock": False,
+            "available": True,
+            "on_stock": True,
             "track": True,
-            "allow_outofstock_sale": False,
-            "level": 0,
+            "allow_outofstock_sale": True,
+            "level": 10,
             "minimum": 1,
             "maximum": 10000,
             "delivery": False,
         }
     })
-    assert res3["stock"] == 0
-    assert res3["stock_status"] == "out_of_stock"
+    assert res3["stock"] == 10
+    assert res3["stock_status"] == "in_stock"
 
 
 def test_extract_short_description_from_content_paragraph():
@@ -165,4 +169,61 @@ def test_extract_short_description_from_content_paragraph():
     assert result["short_description"] == "Leveraging decades of experience in speaker design, Dayton Audio presents the B65 Bookshelf Speakers."
     assert "Highlights" in result["long_description"]
     assert "B65 Bookshelf Speakers" not in result["long_description"]
+
+
+def test_extract_specifications_mzf_8624():
+    """Verify specification extraction for MZF-8624 from content and HTML."""
+    scraper = ProductScraper.__new__(ProductScraper)
+    data = {
+        "sku": "MZF-8624",
+        "ean": "4007754017557",
+        "title": "Monacor MZF-8624 Fixing Clamp For Speaker Grilles",
+        "stock": {"level": 91, "on_stock": True, "available": True},
+        "content": "<p><strong>Specifications</strong>: Material: Metal • Dimensions: 38 x 20 x 14 mm • Weight: 20 g • Admiss. ambient temp. 0-40 °C • Colour: Black • Suitable for: drill hole size: 7 x 11 mm</p>",
+    }
+    html_page = """
+    <section id="specs" class="w-50">
+      <dl>
+        <div><dt>Article number<dd>MZF-8624</dd></dt></div>
+        <div><dt>EAN<dd>4007754017557</dd></dt></div>
+      </dl>
+    </section>
+    """
+    result = scraper.extract_product_data(data, html_doc=html_page)
+    attrs = {a["attribute_name"]: a["attribute_value"] for a in result["attributes"]}
+
+    assert attrs.get("Article number") == "MZF-8624"
+    assert attrs.get("EAN") == "4007754017557"
+    assert attrs.get("Material") == "Metal"
+    assert attrs.get("Dimensions") == "38 x 20 x 14 mm"
+    assert attrs.get("Weight") == "20 g"
+    assert attrs.get("Colour") == "Black"
+    assert "7 x 11 mm" in attrs.get("Suitable for", "")
+    assert result["stock"] == 91
+    assert result["stock_status"] == "in_stock"
+
+
+def test_extract_specifications_mzf_8625():
+    """Verify specification extraction for MZF-8625."""
+    scraper = ProductScraper.__new__(ProductScraper)
+    data = {
+        "sku": "MZF-8625",
+        "ean": "4007754017564",
+        "title": "Monacor MZF-8625 Fixing Clamp",
+        "stock": {"level": 0, "on_stock": False, "available": True, "allow_outofstock_sale": True},
+        "content": "<p><strong>Specifications</strong>: Material: Metal • Dimensions: 38 x 30 x 20 mm • Weight: 34 g • Admiss. ambient temp. 0-40 °C • Colour: Black • Suitable for: drill hole size: 7 x 11 mm • Packing unit: 1</p>",
+    }
+    result = scraper.extract_product_data(data)
+    attrs = {a["attribute_name"]: a["attribute_value"] for a in result["attributes"]}
+
+    assert attrs.get("Article number") == "MZF-8625"
+    assert attrs.get("EAN") == "4007754017564"
+    assert attrs.get("Material") == "Metal"
+    assert attrs.get("Dimensions") == "38 x 30 x 20 mm"
+    assert attrs.get("Weight") == "34 g"
+    assert attrs.get("Colour") == "Black"
+    assert attrs.get("Packing unit") == "1"
+    assert result["stock"] == 0
+    assert result["stock_status"] == "on_backorder"
+
 

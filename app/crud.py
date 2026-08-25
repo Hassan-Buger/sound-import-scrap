@@ -727,8 +727,12 @@ async def upsert_product(
         product.price = price if price is not None else product.price
         if regular_price is None and price is not None:
             product.regular_price = price
-        product.stock = stock
-        product.stock_status = stock_status or product.stock_status
+        if stock is not None:
+            product.stock = stock
+        elif product.stock is None:
+            product.stock = stock
+        if stock_status is not None:
+            product.stock_status = stock_status
         product.brand = brand or product.brand
         product.currency = currency
         product.url = url or product.url
@@ -768,17 +772,18 @@ async def upsert_product(
             .scalars()
             .all()
         )
-        for old_img in old_images:
-            await db.delete(old_img)
+        if len(images) > 0 or not old_images:
+            for old_img in old_images:
+                await db.delete(old_img)
 
-        for img_data in images:
-            img = Image(
-                product_id=product.id,
-                image_url=img_data["image_url"],
-                sort_order=img_data.get("sort_order", 0),
-                is_cover=img_data.get("is_cover", False),
-            )
-            db.add(img)
+            for img_data in images:
+                img = Image(
+                    product_id=product.id,
+                    image_url=img_data["image_url"],
+                    sort_order=img_data.get("sort_order", 0),
+                    is_cover=img_data.get("is_cover", False),
+                )
+                db.add(img)
 
     if attributes is not None:
         old_attrs = (
@@ -790,18 +795,19 @@ async def upsert_product(
             .scalars()
             .all()
         )
-        for old_attr in old_attrs:
-            await db.delete(old_attr)
+        if len(attributes) > 0 or not old_attrs:
+            for old_attr in old_attrs:
+                await db.delete(old_attr)
 
-        for attr_data in attributes:
-            attr = Attribute(
-                product_id=product.id,
-                attribute_name=attr_data["attribute_name"],
-                attribute_value=attr_data.get("attribute_value"),
-                normalized_name=attr_data.get("normalized_name"),
-                sort_order=attr_data.get("sort_order", 0),
-            )
-            db.add(attr)
+            for attr_data in attributes:
+                attr = Attribute(
+                    product_id=product.id,
+                    attribute_name=attr_data["attribute_name"],
+                    attribute_value=attr_data.get("attribute_value"),
+                    normalized_name=attr_data.get("normalized_name"),
+                    sort_order=attr_data.get("sort_order", 0),
+                )
+                db.add(attr)
 
     rel_created, rel_existing = 0, 0
     if product_categories_paths:
