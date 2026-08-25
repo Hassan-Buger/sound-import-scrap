@@ -86,6 +86,69 @@ async def get_category(
     return cat
 
 
+async def _enrich_product_if_needed(
+    db: AsyncSession, product: Product, force: bool = False
+) -> Product:
+    """If a product has stock=None, stock_status=None, or force=True, fetch live details and update DB."""
+    if not force and product.stock is not None and product.stock_status is not None:
+        return product
+
+    if not product.url:
+        return product
+
+    from scraper.soundimports import SoundImportsScraper
+
+    supplier = SoundImportsScraper()
+    try:
+        detail_data = await supplier.get_product_detail(product.url)
+        html_doc = None
+        try:
+            html_doc = await supplier._client.fetch_html(product.url)
+        except Exception:
+            pass
+
+        cat_path = (
+            product.categories[0].canonical_path
+            if product.categories
+            else None
+        )
+        prod_data = supplier.extract_product_detail(
+            detail_data,
+            category_slug=cat_path,
+            html_doc=html_doc,
+        )
+        db_prod, _, _ = await crud.upsert_product(
+            db,
+            product_id=prod_data["product_id"],
+            sku=prod_data["sku"],
+            ean=prod_data.get("ean"),
+            title=prod_data.get("title"),
+            description=prod_data.get("description"),
+            short_description=prod_data.get("short_description"),
+            long_description=prod_data.get("long_description"),
+            regular_price=prod_data.get("regular_price"),
+            price=prod_data.get("price"),
+            stock=prod_data.get("stock"),
+            stock_status=prod_data.get("stock_status"),
+            brand=prod_data.get("brand"),
+            currency=prod_data.get("currency", "EUR"),
+            url=prod_data.get("url"),
+            category_ids=product.category_ids or "",
+            raw_json=prod_data.get("raw_json"),
+            images=prod_data.get("images", []),
+            attributes=prod_data.get("attributes", []),
+            product_categories_paths=[cat_path] if cat_path else [],
+        )
+        await db.commit()
+        await db.refresh(db_prod)
+        return db_prod
+    except Exception as exc:
+        logger.warning("Could not auto-enrich product %s: %s", product.sku, exc)
+        return product
+    finally:
+        await supplier._client.close()
+
+
 @router.get("/category/{category_id_or_slug}/products", response_model=ProductsResponse)
 async def list_category_products(
     category_id_or_slug: str,
@@ -128,6 +191,19 @@ async def list_category_products(
         sort_order=sort_order,
         include_children=include_children,
     )
+
+    # Auto-enrich legacy database products where stock is None
+    unpopulated = [p for p in products if p.stock is None and p.url]
+    if unpopulated:
+        enriched_products = []
+        for p in products:
+            if p.stock is None and p.url:
+                enriched = await _enrich_product_if_needed(db, p)
+                enriched_products.append(enriched)
+            else:
+                enriched_products.append(p)
+        products = enriched_products
+
     return ProductsResponse(
         total=total,
         page=page,
@@ -195,6 +271,8 @@ async def get_product(
             status_code=404,
             detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"},
         )
+    if product.stock is None and product.url:
+        product = await _enrich_product_if_needed(db, product)
     return ProductDetail.model_validate(product)
 
 
@@ -245,6 +323,8 @@ async def get_product_by_sku(
     product = await crud.get_product_by_sku(db, sku)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    if product.stock is None and product.url:
+        product = await _enrich_product_if_needed(db, product)
     return ProductDetail.model_validate(product)
 
 
