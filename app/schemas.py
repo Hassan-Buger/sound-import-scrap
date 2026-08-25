@@ -184,6 +184,7 @@ class ProductListItem(BaseModel):
     title: Optional[str] = None
     regular_price: Optional[float] = None
     short_description: Optional[str] = None
+    long_description: Optional[str] = None
     stock: Optional[int] = None
     stock_status: Optional[str] = None
     brand: Optional[str] = None
@@ -194,6 +195,8 @@ class ProductListItem(BaseModel):
     categories: List[str] = Field(default_factory=list)
     category_slugs: List[str] = Field(default_factory=list)
     images: List[ImageOut] = Field(default_factory=list)
+    attributes: List[AttributeOut] = Field(default_factory=list)
+    specifications: List[SpecificationOut] = Field(default_factory=list)
     updated_at: Optional[str] = None
 
     @model_validator(mode="before")
@@ -205,6 +208,8 @@ class ProductListItem(BaseModel):
                 primary, formatted_path, slugs = rel
             else:
                 primary, formatted_path, slugs = _legacy_category_info(data)
+            attrs_rel = getattr(data, "attributes_rel", None) or []
+            attrs_sorted = sorted(attrs_rel, key=lambda a: a.sort_order or 0)
             return {
                 "id": data.id,
                 "sku": data.sku,
@@ -215,6 +220,7 @@ class ProductListItem(BaseModel):
                 "short_description": data.short_description
                 if data.short_description is not None
                 else data.description,
+                "long_description": data.long_description,
                 "stock": data.stock,
                 "stock_status": data.stock_status,
                 "brand": data.brand,
@@ -232,6 +238,22 @@ class ProductListItem(BaseModel):
                         is_cover=i.is_cover,
                     )
                     for i in data.images
+                ],
+                "attributes": [
+                    AttributeOut(
+                        name=a.attribute_name,
+                        value=a.attribute_value,
+                        sort_order=a.sort_order or 0,
+                    )
+                    for a in attrs_sorted
+                ],
+                "specifications": [
+                    SpecificationOut(
+                        name=a.attribute_name,
+                        value=a.attribute_value,
+                        sort_order=a.sort_order or 0,
+                    )
+                    for a in attrs_sorted
                 ],
                 "updated_at": data.updated_at.isoformat() if data.updated_at else None,
             }

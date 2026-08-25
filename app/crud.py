@@ -489,6 +489,7 @@ async def get_products_paginated(
         .limit(per_page)
         .options(
             selectinload(Product.images),
+            selectinload(Product.attributes_rel),
             selectinload(Product.categories),
         )
     )
@@ -512,7 +513,9 @@ async def export_products(
     category_ids = await _resolve_category_scope(db, category_slug, None, False)
     query, count_query = _apply_filters(query, count_query, brand, category_ids, search)
     query = _apply_sorting(query, sort_by, sort_order).options(
-        selectinload(Product.categories)
+        selectinload(Product.images),
+        selectinload(Product.attributes_rel),
+        selectinload(Product.categories),
     )
 
     result = await db.execute(query)

@@ -92,15 +92,26 @@ class ProductScraper:
         return name
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Description logic (Part 1 & 2)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_paragraph_text(text: str) -> str:
+        if not text:
+            return ""
+        import html
+        text = html.unescape(text)
+        text = text.replace("\u00a0", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
 
     def _build_descriptions(self, raw: Dict[str, Any]) -> Dict[str, str]:
         """Build short_description and long_description from raw product data."""
         content_html = raw.get("content")
         raw_desc = (raw.get("description") or raw.get("shortDescription") or "").strip()
 
-        short_desc = raw_desc
+        short_desc = None
         long_desc = None
 
         if content_html and isinstance(content_html, str) and content_html.strip():
@@ -113,8 +124,8 @@ class ProductScraper:
                 #    then REMOVE it from the DOM so it can never appear in long_desc
                 intro_tag = self._find_intro_paragraph_tag(soup)
                 if intro_tag:
-                    short_desc = intro_tag.get_text(strip=True)
-                    content_container = intro_tag.parent
+                    short_desc = self._normalize_paragraph_text(intro_tag.get_text())
+                    content_container = intro_tag.parent or soup
                     intro_tag.decompose()
                 else:
                     content_container = soup
@@ -124,6 +135,9 @@ class ProductScraper:
             except Exception:
                 pass
 
+        if not short_desc and raw_desc:
+            short_desc = self._normalize_paragraph_text(raw_desc)
+
         return {
             "short_description": short_desc or None,
             "long_description": long_desc or None,
@@ -131,16 +145,28 @@ class ProductScraper:
 
     def _find_intro_paragraph_tag(self, soup: "BeautifulSoup") -> Optional[Any]:
         """Return the first meaningful <p> tag for the intro."""
-        for tag in soup.find_all("p"):
+        for tag in soup.find_all(["p", "div"]):
+            if self._is_heading(tag):
+                continue
+            if tag.find(["h1", "h2", "h3", "h4", "h5", "h6", "table", "ul", "ol"]):
+                continue
             text = tag.get_text(strip=True)
-            if len(text) < 80:
+            if not text or len(text) < 15:
                 continue
             if text.startswith("<"):
                 continue
-            if self._is_heading(tag):
-                continue
-            check = text.replace("\u00a0", " ")
-            if ". " not in check and ".\n" not in check:
+            norm_text = text.lower()
+            if any(
+                norm_text.startswith(x)
+                for x in [
+                    "highlights",
+                    "features",
+                    "specifications",
+                    "product details",
+                    "description",
+                    "details",
+                ]
+            ):
                 continue
             return tag
         return None
@@ -457,20 +483,65 @@ class ProductScraper:
         stock_data = raw.get("stock")
         if stock_data is None:
             stock_data = raw.get("inventory") or raw.get("availability") or {}
+
+        stock = None
         if isinstance(stock_data, dict):
-            stock = self._first_present(
+            raw_qty = self._first_present(
+                stock_data.get("level"),
                 stock_data.get("quantity"),
                 stock_data.get("qty"),
                 stock_data.get("stock"),
             )
-        else:
-            stock = stock_data
+            if raw_qty is not None and str(raw_qty).strip() != "":
+                try:
+                    stock = int(raw_qty)
+                except (ValueError, TypeError):
+                    stock = None
+        elif isinstance(stock_data, (int, float)):
+            stock = int(stock_data)
+        elif isinstance(stock_data, str) and stock_data.isdigit():
+            stock = int(stock_data)
 
-        stock_status = raw.get("stockStatus") or raw.get("availabilityText")
+        stock_status = None
         if isinstance(stock_data, dict):
-            stock_status = (
-                stock_status or stock_data.get("status") or stock_data.get("text")
-            )
+            on_stock = stock_data.get("on_stock")
+            available = stock_data.get("available")
+            allow_backorder = stock_data.get("allow_outofstock_sale") or stock_data.get("delivery")
+            level = stock_data.get("level")
+
+            if on_stock is True or (isinstance(level, int) and level > 0):
+                stock_status = "in_stock"
+            elif on_stock is False and (available is True or allow_backorder):
+                stock_status = "on_backorder"
+            elif on_stock is False or available is False or level == 0:
+                stock_status = "out_of_stock"
+            else:
+                raw_status = str(stock_data.get("status") or stock_data.get("text") or "").lower()
+                if "in stock" in raw_status or "available" in raw_status:
+                    stock_status = "in_stock"
+                elif "out of stock" in raw_status:
+                    stock_status = "out_of_stock"
+                elif "backorder" in raw_status or "preorder" in raw_status:
+                    stock_status = "on_backorder"
+        elif isinstance(stock_data, str):
+            st_lower = stock_data.lower()
+            if "in stock" in st_lower or "in_stock" in st_lower:
+                stock_status = "in_stock"
+            elif "out of stock" in st_lower or "out_of_stock" in st_lower:
+                stock_status = "out_of_stock"
+            elif "backorder" in st_lower:
+                stock_status = "on_backorder"
+
+        if not stock_status:
+            raw_st = str(raw.get("stockStatus") or raw.get("availabilityText") or "").lower()
+            if "in stock" in raw_st or "in_stock" in raw_st:
+                stock_status = "in_stock"
+            elif "out of stock" in raw_st or "out_of_stock" in raw_st:
+                stock_status = "out_of_stock"
+            elif "backorder" in raw_st:
+                stock_status = "on_backorder"
+            elif stock is not None:
+                stock_status = "in_stock" if stock > 0 else "out_of_stock"
 
         brand_data = raw.get("brand") or raw.get("manufacturer") or {}
         if isinstance(brand_data, dict):

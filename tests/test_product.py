@@ -97,3 +97,72 @@ def test_extract_product_data_images_dedup():
     }
     result = scraper.extract_product_data(data)
     assert len(result["images"]) == 2
+
+
+def test_extract_soundimports_stock_level_and_statuses():
+    scraper = ProductScraper.__new__(ProductScraper)
+
+    # In stock with numeric level
+    res1 = scraper.extract_product_data({
+        "sku": "SKU-ST-1",
+        "stock": {
+            "available": True,
+            "on_stock": True,
+            "track": True,
+            "allow_outofstock_sale": True,
+            "level": 26,
+            "minimum": 1,
+            "maximum": 10000,
+            "delivery": False,
+        }
+    })
+    assert res1["stock"] == 26
+    assert res1["stock_status"] == "in_stock"
+
+    # Out of stock with backorder allowed
+    res2 = scraper.extract_product_data({
+        "sku": "SKU-ST-2",
+        "stock": {
+            "available": True,
+            "on_stock": False,
+            "track": True,
+            "allow_outofstock_sale": True,
+            "level": 0,
+            "minimum": 1,
+            "maximum": 10000,
+            "delivery": False,
+        }
+    })
+    assert res2["stock"] == 0
+    assert res2["stock_status"] == "on_backorder"
+
+    # Out of stock completely
+    res3 = scraper.extract_product_data({
+        "sku": "SKU-ST-3",
+        "stock": {
+            "available": False,
+            "on_stock": False,
+            "track": True,
+            "allow_outofstock_sale": False,
+            "level": 0,
+            "minimum": 1,
+            "maximum": 10000,
+            "delivery": False,
+        }
+    })
+    assert res3["stock"] == 0
+    assert res3["stock_status"] == "out_of_stock"
+
+
+def test_extract_short_description_from_content_paragraph():
+    scraper = ProductScraper.__new__(ProductScraper)
+    data = {
+        "sku": "SKU-DESC-1",
+        "description": "Truncated meta SEO description that cuts off at the...",
+        "content": "<p>Leveraging decades of experience in speaker design, Dayton Audio presents the B65 Bookshelf Speakers.</p><h3>Highlights</h3><ul><li>Great sound</li></ul>",
+    }
+    result = scraper.extract_product_data(data)
+    assert result["short_description"] == "Leveraging decades of experience in speaker design, Dayton Audio presents the B65 Bookshelf Speakers."
+    assert "Highlights" in result["long_description"]
+    assert "B65 Bookshelf Speakers" not in result["long_description"]
+

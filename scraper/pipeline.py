@@ -958,13 +958,15 @@ class ScrapePipeline:
         export_dir.mkdir(parents=True, exist_ok=True)
 
         async with async_session_factory() as db:
+            from app.router import _build_category_tree
+
             categories = await crud.get_all_categories(db)
-            cat_data = [CategoryOut.model_validate(c).model_dump() for c in categories]
+            cat_tree = _build_category_tree(categories)
             with open(export_dir / "categories.json", "w", encoding="utf-8") as f:
-                json.dump(cat_data, f, ensure_ascii=False, indent=2)
+                json.dump(cat_tree, f, ensure_ascii=False, indent=2)
             logger.info(
-                "Exported %d categories to %s",
-                len(cat_data),
+                "Exported %d root categories (hierarchical) to %s",
+                len(cat_tree),
                 export_dir / "categories.json",
             )
 

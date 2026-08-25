@@ -36,7 +36,7 @@ class CategoryScraper:
         return data
 
     def _get_collection(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return data.get("collection", data)
+        return data.get("collection") or data.get("catalog") or data
 
     def get_metadata(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Expose the source's own counter information for a category page."""

@@ -49,13 +49,71 @@ class SitemapParser:
         """
         html = await self.client.fetch_html(settings.sitemap_url)
         categories = self._parse_html(html)
+
+        # Merge additional valid categories from XML sitemap if present
+        try:
+            xml_categories = await self._discover_xml_categories()
+            if xml_categories:
+                existing_paths = {c["canonical_path"] for c in categories}
+                for xml_cat in xml_categories:
+                    if xml_cat["canonical_path"] not in existing_paths:
+                        categories.append(xml_cat)
+                        existing_paths.add(xml_cat["canonical_path"])
+        except Exception as exc:
+            logger.debug("Optional XML sitemap discovery skipped: %s", exc)
+
         if not categories:
             raise ValueError(
                 "SoundImports sitemap contained no parseable categories; "
                 "the source markup may have changed"
             )
+        categories = self._dedupe_by_path(categories)
         logger.info("Discovered %d categories from sitemap", len(categories))
         return categories
+
+    async def _discover_xml_categories(self) -> List[Dict[str, Any]]:
+        xml_url = urljoin(settings.base_url, "/en/sitemap.xml")
+        try:
+            xml_text = await self.client.fetch_html(xml_url)
+            soup = BeautifulSoup(xml_text, "xml")
+            discovered: List[Dict[str, Any]] = []
+            from scraper.urlutils import parent_path, path_level
+            from app.schemas import format_category_name
+
+            for loc in soup.find_all("loc"):
+                url_str = loc.get_text(strip=True)
+                if not url_str.startswith("https://www.soundimports.eu/en/"):
+                    continue
+                if url_str.endswith(".html") or ".html" in url_str:
+                    continue
+                if any(excl in url_str.lower() for excl in self.EXCLUDED_PATHS):
+                    continue
+                canon = normalize_category_path(url_str)
+                if not canon or canon in (
+                    "/",
+                    "/en/",
+                    "/en/catalog/",
+                    "/en/collection/",
+                    "/en/sitemap/",
+                ):
+                    continue
+                if canon.startswith("/en/tags/"):
+                    continue
+                slug = category_slug_from_path(canon)
+                discovered.append(
+                    {
+                        "name": format_category_name(slug) or slug,
+                        "slug": slug,
+                        "url": url_str,
+                        "canonical_path": canon,
+                        "parent_path": parent_path(canon),
+                        "level": path_level(canon),
+                        "source_count": 0,
+                    }
+                )
+            return discovered
+        except Exception:
+            return []
 
     # ------------------------------------------------------------- parsing
 
