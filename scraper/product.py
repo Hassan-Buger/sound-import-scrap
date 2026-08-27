@@ -607,10 +607,26 @@ class ProductScraper:
                     stock = int(raw_qty)
                 except (ValueError, TypeError):
                     stock = None
-        elif isinstance(stock_data, (int, float)):
-            stock = int(stock_data)
-        elif isinstance(stock_data, str) and stock_data.isdigit():
-            stock = int(stock_data)
+        # Check variants if stock level was not in root stock dict
+        if stock is None:
+            variants = raw.get("variants")
+            if isinstance(variants, dict):
+                var_levels = []
+                for v in variants.values():
+                    if isinstance(v, dict):
+                        v_st = v.get("stock")
+                        if isinstance(v_st, dict) and v_st.get("level") is not None:
+                            try:
+                                var_levels.append(int(v_st["level"]))
+                            except (ValueError, TypeError):
+                                pass
+                        elif v.get("stock_level") is not None:
+                            try:
+                                var_levels.append(int(v["stock_level"]))
+                            except (ValueError, TypeError):
+                                pass
+                if var_levels:
+                    stock = sum(var_levels)
 
         # Fallback to HTML if stock was not in JSON
         if stock is None and html_doc:
