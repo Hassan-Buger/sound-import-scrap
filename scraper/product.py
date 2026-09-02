@@ -225,7 +225,8 @@ class ProductScraper:
         """Extract all product specifications as a sorted list of dicts.
 
         Combines structured JSON attributes/specs, HTML #specs DL/tables,
-        and content HTML specification paragraphs.
+        heading sections, and content HTML specification paragraphs.
+        Guarantees that only non-empty, valid specifications are returned.
 
         Each item::
 
@@ -236,7 +237,7 @@ class ProductScraper:
         seen_keys: Dict[str, int] = {}  # norm_name -> index in attributes
 
         def add_spec(key: Any, val: Any) -> None:
-            if key is None:
+            if key is None or val is None:
                 return
             import html
 
@@ -244,12 +245,13 @@ class ProductScraper:
             k = re.sub(r"\s+", " ", k).strip()
             k = re.sub(r":\s*$", "", k).strip()
 
-            v = html.unescape(str(val)) if val is not None else ""
-            v = v.replace("\u00a0", " ")
+            v = html.unescape(str(val)).replace("\u00a0", " ")
             v = re.sub(r"\s+", " ", v).strip()
 
-            if not k or len(k) > 70:
+            # Discard if key or value is empty or invalid length
+            if not k or not v or len(k) > 70 or len(k) < 2:
                 return
+
             # Ignore UI, navigation, or action buttons
             if any(
                 ign in k.lower()
@@ -261,6 +263,8 @@ class ProductScraper:
                     "share",
                     "add to cart",
                     "delivery",
+                    "what's in the box",
+                    "highlights",
                 ]
             ):
                 return
@@ -297,7 +301,8 @@ class ProductScraper:
                         or spec_data.get("label")
                     )
                     v = spec_data.get("value") or spec_data.get("text")
-                    add_spec(k, v)
+                    if k and v:
+                        add_spec(k, v)
 
         raw_attrs = (
             raw.get("attributes")
@@ -307,7 +312,8 @@ class ProductScraper:
         )
         if isinstance(raw_attrs, dict):
             for key, value in raw_attrs.items():
-                add_spec(key, value)
+                if key and value:
+                    add_spec(key, value)
         elif isinstance(raw_attrs, list):
             for item in raw_attrs:
                 if isinstance(item, dict):
@@ -322,7 +328,8 @@ class ProductScraper:
                         or item.get("text")
                         or item.get("attribute_value")
                     )
-                    add_spec(k, v)
+                    if k and v:
+                        add_spec(k, v)
 
         # 2. Parse HTML content or document for dedicated Specifications
         content_html = raw.get("content") or ""
@@ -338,9 +345,14 @@ class ProductScraper:
 
                 soup = BeautifulSoup(h_src, "html.parser")
 
-                # Look for #specs or section.specs (e.g. from full page HTML)
+                # 2a. Look for #specs, section.specs, div.specs, div.product-specifications
                 specs_sec = soup.find(id="specs") or soup.find(
-                    "section", class_=re.compile(r"specs|specifications", re.I)
+                    lambda tag: tag.name in ["section", "div"]
+                    and tag.get("class")
+                    and any(
+                        re.search(r"specs|specifications", cls, re.I)
+                        for cls in tag.get("class")
+                    )
                 )
                 if specs_sec:
                     for dl in specs_sec.find_all("dl"):
@@ -353,27 +365,79 @@ class ProductScraper:
                                     nested_dd.decompose()
                                 k_text = dt_clone.get_text(" ", strip=True)
                                 v_text = dd.get_text(" ", strip=True)
-                                add_spec(k_text, v_text)
+                                if k_text and v_text:
+                                    add_spec(k_text, v_text)
 
-                    for table in specs_sec.find_all("table"):
-                        for row in table.find_all("tr"):
-                            cells = row.find_all(["th", "td"])
-                            if len(cells) == 2:
-                                add_spec(
-                                    cells[0].get_text(strip=True),
-                                    cells[1].get_text(strip=True),
-                                )
+                # 2b. Extract from any 2-column tables in HTML content
+                for table in soup.find_all("table"):
+                    for row in table.find_all("tr"):
+                        cells = row.find_all(["th", "td"])
+                        if len(cells) == 2:
+                            add_spec(
+                                cells[0].get_text(strip=True),
+                                cells[1].get_text(strip=True),
+                            )
 
-                # Look for dedicated Specifications paragraph in content HTML
+                # 2c. Look for heading elements containing Specifications or Technical Parameters
+                spec_headings = soup.find_all(
+                    ["h1", "h2", "h3", "h4", "h5", "h6", "strong"],
+                    string=re.compile(
+                        r"specifications?|specificaties?|technical\s+(?:specifications?|data|details)|parameters?|physical\s+parameters?",
+                        re.I,
+                    ),
+                )
+                for heading in spec_headings:
+                    container = heading.parent if heading.name == "strong" else heading
+                    for sib in container.find_next_siblings():
+                        if sib.name and sib.name.startswith("h"):
+                            break
+                        if sib.name in ["ul", "ol"]:
+                            for li in sib.find_all("li"):
+                                li_text = li.get_text(" ", strip=True)
+                                if ":" in li_text:
+                                    k, v = li_text.split(":", 1)
+                                    add_spec(k, v)
+                                elif " - " in li_text:
+                                    k, v = li_text.split(" - ", 1)
+                                    add_spec(k, v)
+                        elif sib.name == "table":
+                            for row in sib.find_all("tr"):
+                                cells = row.find_all(["th", "td"])
+                                if len(cells) == 2:
+                                    add_spec(
+                                        cells[0].get_text(strip=True),
+                                        cells[1].get_text(strip=True),
+                                    )
+                        elif sib.name in ["p", "div"]:
+                            sib_text = sib.get_text(" ", strip=True)
+                            items = re.split(r"[•▪|;\n]", sib_text)
+                            for itm in items:
+                                itm = itm.strip()
+                                if ":" in itm:
+                                    k, v = itm.split(":", 1)
+                                    add_spec(k, v)
+                                elif " - " in itm:
+                                    k, v = itm.split(" - ", 1)
+                                    add_spec(k, v)
+
+                # 2d. Look for dedicated Specifications paragraph in content HTML
                 for tag in soup.find_all(["p", "div", "li"]):
                     strong = tag.find("strong")
                     has_spec_label = bool(
-                        strong and "specification" in strong.get_text().lower()
+                        strong
+                        and any(
+                            s in strong.get_text().lower()
+                            for s in ["specification", "specificatie", "parameters"]
+                        )
                     )
                     tag_text = tag.get_text(" ", strip=True)
-                    if has_spec_label or tag_text.lower().startswith("specifications:"):
+                    if (
+                        has_spec_label
+                        or tag_text.lower().startswith("specifications:")
+                        or tag_text.lower().startswith("specificaties:")
+                    ):
                         clean_text = re.sub(
-                            r"^.*?specifications?\s*:?\s*",
+                            r"^.*?(?:specifications?|specificaties?|parameters?)\s*:?\s*",
                             "",
                             tag_text,
                             flags=re.IGNORECASE,
@@ -399,11 +463,14 @@ class ProductScraper:
         if ean:
             add_spec("EAN", ean)
 
-        # Reassign sort_order based on final sequence
-        for i, attr in enumerate(attributes):
-            attr["sort_order"] = i
+        # 4. Final filter to ensure only filled specifications are returned and re-index sort_order
+        final_attributes = []
+        for a in attributes:
+            if a.get("attribute_value") and str(a["attribute_value"]).strip():
+                a["sort_order"] = len(final_attributes)
+                final_attributes.append(a)
 
-        return attributes
+        return final_attributes
 
     # ------------------------------------------------------------------
     # Image extraction

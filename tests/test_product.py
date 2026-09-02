@@ -248,4 +248,73 @@ def test_extract_stock_from_user_dom_model():
     assert result["stock_status"] == "in_stock"
 
 
+def test_extract_specifications_filters_empty_templates():
+    """Verify that empty template specification fields with value: '' are excluded."""
+    scraper = ProductScraper.__new__(ProductScraper)
+    data = {
+        "sku": "CLASSIC-B65",
+        "ean": "0848791010156",
+        "title": "Classic B65 Bookshelf Speakers",
+        "specs": {
+            "1": {"title": "Power Handling (RMS)", "value": "40 Watts"},
+            "2": {"title": "Power Handling (max)", "value": "75 Watt"},
+            "3": {"title": "Impedance (Z)", "value": "6 Ω"},
+            "4": {"title": "Woofer Series", "value": ""},
+            "5": {"title": "Nominal Diameter", "value": "   "},
+            "6": {"title": "Voice Coil Diameter", "value": None},
+        },
+    }
+    result = scraper.extract_product_data(data)
+    attrs = {a["attribute_name"]: a["attribute_value"] for a in result["attributes"]}
+
+    assert "Power Handling (RMS)" in attrs
+    assert attrs["Power Handling (RMS)"] == "40 Watts"
+    assert "Power Handling (max)" in attrs
+    assert "Impedance (Z)" in attrs
+    assert "Article number" in attrs
+    assert "EAN" in attrs
+
+    # Empty templates must not be included
+    assert "Woofer Series" not in attrs
+    assert "Nominal Diameter" not in attrs
+    assert "Voice Coil Diameter" not in attrs
+    assert len(result["attributes"]) == 5
+
+
+def test_extract_specifications_from_html_headings_and_tables():
+    """Verify specification extraction from heading sections, lists, and tables."""
+    scraper = ProductScraper.__new__(ProductScraper)
+    data = {
+        "sku": "AMP-200",
+        "ean": "1234567890123",
+        "title": "Stereo Amplifier 200W",
+        "content": """
+        <h2>Highlights</h2>
+        <p>Great amplifier</p>
+        <h3>Technical Specifications</h3>
+        <ul>
+            <li>Rated Power Output: 200W RMS</li>
+            <li>Signal-to-Noise Ratio: 105 dB</li>
+            <li>THD: < 0.01%</li>
+        </ul>
+        <h3>Physical Parameters</h3>
+        <table>
+            <tr><th>Weight</th><td>4.5 kg</td></tr>
+            <tr><th>Dimensions</th><td>430 x 100 x 300 mm</td></tr>
+        </table>
+        """,
+    }
+    result = scraper.extract_product_data(data)
+    attrs = {a["attribute_name"]: a["attribute_value"] for a in result["attributes"]}
+
+    assert attrs.get("Rated Power Output") == "200W RMS"
+    assert attrs.get("Signal-to-Noise Ratio") == "105 dB"
+    assert attrs.get("THD") == "< 0.01%"
+    assert attrs.get("Weight") == "4.5 kg"
+    assert attrs.get("Dimensions") == "430 x 100 x 300 mm"
+    assert attrs.get("Article number") == "AMP-200"
+    assert attrs.get("EAN") == "1234567890123"
+
+
+
 

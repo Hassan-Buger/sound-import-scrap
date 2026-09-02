@@ -86,11 +86,25 @@ async def get_category(
     return cat
 
 
+def _needs_enrichment(product: Product) -> bool:
+    """Check if a product is missing stock or specifications."""
+    if product.stock is None or product.stock_status is None:
+        return True
+    attrs = getattr(product, "attributes_rel", None) or []
+    valid_attrs = [
+        a for a in attrs if a.attribute_value and str(a.attribute_value).strip()
+    ]
+    # If product has <= 2 specs (only Article number / EAN) or 0 specs, needs enrichment
+    if len(valid_attrs) <= 2:
+        return True
+    return False
+
+
 async def _enrich_product_if_needed(
     db: AsyncSession, product: Product, force: bool = False
 ) -> Product:
-    """If a product has stock=None, stock_status=None, or force=True, fetch live details and update DB."""
-    if not force and product.stock is not None and product.stock_status is not None:
+    """If a product has missing stock, missing specifications, or force=True, fetch live details and update DB."""
+    if not force and not _needs_enrichment(product):
         return product
 
     if not product.url:
@@ -192,12 +206,12 @@ async def list_category_products(
         include_children=include_children,
     )
 
-    # Auto-enrich legacy database products where stock is None
-    unpopulated = [p for p in products if p.stock is None and p.url]
+    # Auto-enrich products where stock or specifications are unpopulated
+    unpopulated = [p for p in products if p.url and _needs_enrichment(p)]
     if unpopulated:
         enriched_products = []
         for p in products:
-            if p.stock is None and p.url:
+            if p.url and _needs_enrichment(p):
                 enriched = await _enrich_product_if_needed(db, p)
                 enriched_products.append(enriched)
             else:
@@ -252,6 +266,19 @@ async def list_products(
         sort_by=sort_by,
         sort_order=sort_order,
     )
+
+    # Auto-enrich products where stock or specifications are unpopulated
+    unpopulated = [p for p in products if p.url and _needs_enrichment(p)]
+    if unpopulated:
+        enriched_products = []
+        for p in products:
+            if p.url and _needs_enrichment(p):
+                enriched = await _enrich_product_if_needed(db, p)
+                enriched_products.append(enriched)
+            else:
+                enriched_products.append(p)
+        products = enriched_products
+
     return ProductsResponse(
         total=total,
         page=page,
@@ -271,7 +298,7 @@ async def get_product(
             status_code=404,
             detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"},
         )
-    if product.stock is None and product.url:
+    if product.url and _needs_enrichment(product):
         product = await _enrich_product_if_needed(db, product)
     return ProductDetail.model_validate(product)
 
@@ -303,12 +330,18 @@ async def get_product_specifications(
             status_code=404,
             detail={"message": "Product not found.", "error_code": "PRODUCT_NOT_FOUND"},
         )
-    attrs_sorted = sorted(product.attributes_rel, key=lambda a: a.sort_order or 0)
+    if product.url and _needs_enrichment(product):
+        product = await _enrich_product_if_needed(db, product)
+    attrs_rel = getattr(product, "attributes_rel", None) or []
+    attrs_sorted = sorted(attrs_rel, key=lambda a: a.sort_order or 0)
+    attrs_valid = [
+        a for a in attrs_sorted if a.attribute_value and str(a.attribute_value).strip()
+    ]
     return [
         SpecificationOut(
-            name=a.attribute_name, value=a.attribute_value, sort_order=a.sort_order or 0
+            name=a.attribute_name, value=a.attribute_value, sort_order=idx
         )
-        for a in attrs_sorted
+        for idx, a in enumerate(attrs_valid)
     ]
 
 
@@ -323,7 +356,7 @@ async def get_product_by_sku(
     product = await crud.get_product_by_sku(db, sku)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    if product.stock is None and product.url:
+    if product.url and _needs_enrichment(product):
         product = await _enrich_product_if_needed(db, product)
     return ProductDetail.model_validate(product)
 

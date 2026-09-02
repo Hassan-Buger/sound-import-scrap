@@ -786,6 +786,11 @@ async def upsert_product(
                 db.add(img)
 
     if attributes is not None:
+        valid_attributes = [
+            a
+            for a in attributes
+            if a.get("attribute_value") and str(a.get("attribute_value")).strip()
+        ]
         old_attrs = (
             (
                 await db.execute(
@@ -795,17 +800,17 @@ async def upsert_product(
             .scalars()
             .all()
         )
-        if len(attributes) > 0 or not old_attrs:
+        if len(valid_attributes) > 0 or not old_attrs:
             for old_attr in old_attrs:
                 await db.delete(old_attr)
 
-            for attr_data in attributes:
+            for idx, attr_data in enumerate(valid_attributes):
                 attr = Attribute(
                     product_id=product.id,
                     attribute_name=attr_data["attribute_name"],
-                    attribute_value=attr_data.get("attribute_value"),
+                    attribute_value=str(attr_data.get("attribute_value")).strip(),
                     normalized_name=attr_data.get("normalized_name"),
-                    sort_order=attr_data.get("sort_order", 0),
+                    sort_order=idx,
                 )
                 db.add(attr)
 

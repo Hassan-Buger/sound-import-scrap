@@ -210,6 +210,9 @@ class ProductListItem(BaseModel):
                 primary, formatted_path, slugs = _legacy_category_info(data)
             attrs_rel = getattr(data, "attributes_rel", None) or []
             attrs_sorted = sorted(attrs_rel, key=lambda a: a.sort_order or 0)
+            attrs_valid = [
+                a for a in attrs_sorted if a.attribute_value and str(a.attribute_value).strip()
+            ]
             return {
                 "id": data.id,
                 "sku": data.sku,
@@ -243,17 +246,17 @@ class ProductListItem(BaseModel):
                     AttributeOut(
                         name=a.attribute_name,
                         value=a.attribute_value,
-                        sort_order=a.sort_order or 0,
+                        sort_order=idx,
                     )
-                    for a in attrs_sorted
+                    for idx, a in enumerate(attrs_valid)
                 ],
                 "specifications": [
                     SpecificationOut(
                         name=a.attribute_name,
                         value=a.attribute_value,
-                        sort_order=a.sort_order or 0,
+                        sort_order=idx,
                     )
-                    for a in attrs_sorted
+                    for idx, a in enumerate(attrs_valid)
                 ],
                 "updated_at": data.updated_at.isoformat() if data.updated_at else None,
             }
@@ -290,7 +293,11 @@ class ProductDetail(BaseModel):
                 primary, formatted_path, slugs = rel
             else:
                 primary, formatted_path, slugs = _legacy_category_info(data)
-            attrs_sorted = sorted(data.attributes_rel, key=lambda a: a.sort_order or 0)
+            attrs_rel = getattr(data, "attributes_rel", None) or []
+            attrs_sorted = sorted(attrs_rel, key=lambda a: a.sort_order or 0)
+            attrs_valid = [
+                a for a in attrs_sorted if a.attribute_value and str(a.attribute_value).strip()
+            ]
             return {
                 "id": data.id,
                 "sku": data.sku,
@@ -324,17 +331,17 @@ class ProductDetail(BaseModel):
                     AttributeOut(
                         name=a.attribute_name,
                         value=a.attribute_value,
-                        sort_order=a.sort_order or 0,
+                        sort_order=idx,
                     )
-                    for a in attrs_sorted
+                    for idx, a in enumerate(attrs_valid)
                 ],
                 "specifications": [
                     SpecificationOut(
                         name=a.attribute_name,
                         value=a.attribute_value,
-                        sort_order=a.sort_order or 0,
+                        sort_order=idx,
                     )
-                    for a in attrs_sorted
+                    for idx, a in enumerate(attrs_valid)
                 ],
                 "updated_at": data.updated_at.isoformat() if data.updated_at else None,
             }

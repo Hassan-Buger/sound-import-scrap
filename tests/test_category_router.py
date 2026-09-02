@@ -165,3 +165,36 @@ async def test_category_products_isolation_and_fields(session_factory):
         assert item2.stock == 0
         assert item2.stock_status == "out_of_stock"
 
+
+def test_product_schema_omits_empty_specifications():
+    """Verify that ProductListItem and ProductDetail omit attributes with empty or whitespace values."""
+    product = Product(
+        id=60,
+        sku="TEST-EMPTY-SPECS",
+        title="Test Speaker Empty Specs",
+        price=99.99,
+        stock=5,
+        stock_status="in_stock",
+    )
+    product.attributes_rel = [
+        Attribute(product_id=60, attribute_name="Impedance", attribute_value="8 Ohm", sort_order=0),
+        Attribute(product_id=60, attribute_name="EmptySpec1", attribute_value="", sort_order=1),
+        Attribute(product_id=60, attribute_name="EmptySpec2", attribute_value="   ", sort_order=2),
+        Attribute(product_id=60, attribute_name="Power", attribute_value="50W", sort_order=3),
+    ]
+
+    item = ProductListItem.model_validate(product)
+    assert len(item.specifications) == 2
+    assert item.specifications[0].name == "Impedance"
+    assert item.specifications[0].value == "8 Ohm"
+    assert item.specifications[0].sort_order == 0
+    assert item.specifications[1].name == "Power"
+    assert item.specifications[1].value == "50W"
+    assert item.specifications[1].sort_order == 1
+
+    detail = ProductDetail.model_validate(product)
+    assert len(detail.specifications) == 2
+    assert detail.specifications[0].name == "Impedance"
+    assert detail.specifications[1].name == "Power"
+
+
